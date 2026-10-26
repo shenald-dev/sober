@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from sober.core.scanner import FileToAudit
 from sober.detectors.security import audit_security
 from sober.detectors import Severity

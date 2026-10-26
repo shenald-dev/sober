@@ -7,7 +7,6 @@ import ast
 import re
 import urllib.request
 import urllib.error
-import json
 from pathlib import Path
 from typing import List, Set, Tuple
 
@@ -225,7 +224,7 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> List[Is
                         file_path=file_rel,
                         line_number=lineno,
                         code_snippet=snippet,
-                        fix_suggestion=f"Install the real package or check for typos in package.json.",
+                        fix_suggestion="Install the real package or check for typos in package.json.",
                     )
                 )
 

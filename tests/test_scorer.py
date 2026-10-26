@@ -1,4 +1,3 @@
-import pytest
 from sober.core.scorer import SoberAuditReport
 from sober.detectors import Issue, Severity
 

@@ -1,5 +1,3 @@
-import pytest
-from pathlib import Path
 from sober.core.scanner import FileToAudit
 from sober.detectors.hallucinations import audit_hallucinations, _REGISTRY_CACHE
 from sober.detectors import Severity

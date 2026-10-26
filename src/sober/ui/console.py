@@ -22,7 +22,7 @@ from sober.detectors import Severity
 
 console = Console()
 
-LOGO = """[bold cyan]   ____ ____  ____  _____ ____  [/]
+LOGO = r"""[bold cyan]   ____ ____  ____  _____ ____  [/]
 [bold cyan]  / ___/ __ \| __ )| ____|  _ \ [/]
 [bold cyan]  \___ \ | | |  _ \|  _| | |_) |[/]
 [bold cyan]   ___) | |_| | |_) | |___|  _ < [/]

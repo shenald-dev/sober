@@ -3,7 +3,6 @@ CLI Entrypoint for SOBER - The Vibe Coding Hangover Cure.
 """
 
 import json
-import sys
 import time
 from pathlib import Path
 from typing import Optional
