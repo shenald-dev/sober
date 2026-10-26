@@ -14,6 +14,7 @@
 
 <br/><br/>
 
+[![Release](https://img.shields.io/github/v/release/shenald-dev/sober?color=ff007f&style=for-the-badge&logo=github)](https://github.com/shenald-dev/sober/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-00d4ff.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00e676.svg?style=for-the-badge)](LICENSE)
 [![CI Status](https://img.shields.io/badge/CI-Passing-00d4ff.svg?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/shenald-dev/sober/actions)
@@ -73,16 +74,22 @@ Standard `git diff` was built for humans reviewing 5-line edits—not humans aud
 
 ### Installation
 
-Install via pip:
+Install directly via pip from GitHub:
 
 ```bash
-pip install sober
+pip install "git+https://github.com/shenald-dev/sober.git"
 ```
 
-Or run directly with `pipx` or `uvx` without installing:
+Or install the pre-built wheel directly from the [latest GitHub Release](https://github.com/shenald-dev/sober/releases/latest):
 
 ```bash
-pipx run sober scan
+pip install https://github.com/shenald-dev/sober/releases/download/v0.1.0/sober-0.1.0-py3-none-any.whl
+```
+
+Or run directly with `pipx` or `uv`:
+
+```bash
+pipx install "git+https://github.com/shenald-dev/sober.git"
 ```
 
 ---
