@@ -1,6 +1,7 @@
 from sober.core.scanner import FileToAudit
-from sober.detectors.hallucinations import audit_hallucinations, _REGISTRY_CACHE
 from sober.detectors import Severity
+from sober.detectors.hallucinations import _REGISTRY_CACHE, audit_hallucinations
+
 
 def test_python_stdlib_not_flagged(tmp_path):
     f = tmp_path / "valid.py"

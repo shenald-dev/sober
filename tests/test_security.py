@@ -1,6 +1,7 @@
 from sober.core.scanner import FileToAudit
-from sober.detectors.security import audit_security
 from sober.detectors import Severity
+from sober.detectors.security import audit_security
+
 
 def test_detects_leaked_openai_and_github_keys(tmp_path):
     f = tmp_path / "secrets.py"

@@ -5,16 +5,15 @@ Verifies that newly introduced external imports actually exist in PyPI or npm.
 
 import ast
 import re
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
-from typing import List, Set, Tuple
 
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
 # Standard library module sets to prevent false alarms
-PYTHON_STDLIB: Set[str] = {
+PYTHON_STDLIB: set[str] = {
     "abc", "aifc", "argparse", "array", "ast", "asynchat", "asyncio", "asyncore",
     "atexit", "audioop", "base64", "bdb", "binascii", "binhex", "bisect", "builtins",
     "bz2", "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd", "code", "codecs",
@@ -45,7 +44,7 @@ PYTHON_STDLIB: Set[str] = {
     "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo"
 }
 
-NODE_BUILTINS: Set[str] = {
+NODE_BUILTINS: set[str] = {
     "assert", "async_hooks", "buffer", "child_process", "cluster", "console",
     "constants", "crypto", "dgram", "diagnostics_channel", "dns", "domain",
     "events", "fs", "fs/promises", "http", "http2", "https", "inspector",
@@ -79,7 +78,7 @@ def is_pypi_package_real(package_name: str) -> bool:
             return False
         _REGISTRY_CACHE[clean_name] = True
         return True
-    except Exception:
+    except (urllib.error.URLError, TimeoutError, OSError):
         # Network timeout or offline - assume true to prevent blocking unless confirmed 404
         return True
 
@@ -103,11 +102,11 @@ def is_npm_package_real(package_name: str) -> bool:
             return False
         _REGISTRY_CACHE[clean_name] = True
         return True
-    except Exception:
+    except (urllib.error.URLError, TimeoutError, OSError):
         return True
 
 
-def extract_python_imports(code: str) -> List[Tuple[str, int, str]]:
+def extract_python_imports(code: str) -> list[tuple[str, int, str]]:
     """Extract top-level external module imports with their line numbers."""
     imports = []
     try:
@@ -117,11 +116,10 @@ def extract_python_imports(code: str) -> List[Tuple[str, int, str]]:
                 for alias in node.names:
                     root_pkg = alias.name.split(".")[0]
                     imports.append((root_pkg, node.lineno, f"import {alias.name}"))
-            elif isinstance(node, ast.ImportFrom):
-                if node.level == 0 and node.module:
-                    root_pkg = node.module.split(".")[0]
-                    imports.append((root_pkg, node.lineno, f"from {node.module} import ..."))
-    except Exception:
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                root_pkg = node.module.split(".")[0]
+                imports.append((root_pkg, node.lineno, f"from {node.module} import ..."))
+    except (SyntaxError, ValueError):
         # Fallback to regex if file has partial syntax during audit
         for i, line in enumerate(code.splitlines(), start=1):
             line_str = line.strip()
@@ -136,7 +134,7 @@ def extract_python_imports(code: str) -> List[Tuple[str, int, str]]:
     return imports
 
 
-def extract_js_imports(code: str) -> List[Tuple[str, int, str]]:
+def extract_js_imports(code: str) -> list[tuple[str, int, str]]:
     """Extract imported external npm package names from JS/TS code."""
     imports = []
     lines = code.splitlines()
@@ -163,7 +161,7 @@ def extract_js_imports(code: str) -> List[Tuple[str, int, str]]:
     return imports
 
 
-def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> List[Issue]:
+def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
     """Scan file for hallucinated or non-existent external dependencies."""
     issues = []
     code = file_audit.read_text()

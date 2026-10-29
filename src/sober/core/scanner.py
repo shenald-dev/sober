@@ -5,7 +5,6 @@ File and Git repository scanner for detecting code to audit.
 import os
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Set
 
 SUPPORTED_EXTENSIONS = {".py", ".js", ".jsx", ".ts", ".tsx"}
 IGNORED_DIRS = {
@@ -30,7 +29,7 @@ IGNORED_DIRS = {
 
 
 class FileToAudit:
-    def __init__(self, path: Path, is_git_diff: bool = False, diff_lines: Optional[Set[int]] = None):
+    def __init__(self, path: Path, is_git_diff: bool = False, diff_lines: set[int] | None = None):
         self.path = path
         self.is_git_diff = is_git_diff
         self.diff_lines = diff_lines or set()
@@ -42,7 +41,7 @@ class FileToAudit:
     def read_text(self) -> str:
         try:
             return self.path.read_text(encoding="utf-8", errors="replace")
-        except Exception:
+        except (OSError, UnicodeDecodeError):
             return ""
 
 
@@ -57,11 +56,11 @@ def is_git_repo(root: Path) -> bool:
             check=False,
         )
         return res.returncode == 0
-    except Exception:
+    except OSError:
         return False
 
 
-def get_git_modified_files(root: Path) -> List[FileToAudit]:
+def get_git_modified_files(root: Path) -> list[FileToAudit]:
     """Retrieve modified, staged, and untracked files from git status and diff."""
     if not is_git_repo(root):
         return []
@@ -96,7 +95,7 @@ def get_git_modified_files(root: Path) -> List[FileToAudit]:
             check=False,
         )
         if diff_res.returncode == 0:
-            current_file: Optional[Path] = None
+            current_file: Path | None = None
             for line in diff_res.stdout.splitlines():
                 if line.startswith("+++ b/"):
                     rel = line[6:]
@@ -121,9 +120,9 @@ def get_git_modified_files(root: Path) -> List[FileToAudit]:
     return list(files_map.values())
 
 
-def get_all_code_files(root: Path) -> List[FileToAudit]:
+def get_all_code_files(root: Path) -> list[FileToAudit]:
     """Recursively discover all supported source files in the project."""
-    files: List[FileToAudit] = []
+    files: list[FileToAudit] = []
     for dirpath, dirnames, filenames in os.walk(root):
         # Prune ignored directories in place
         dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS and not d.startswith(".")]

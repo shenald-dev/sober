@@ -2,12 +2,12 @@
 Sober Score engine - computes code sobriety metrics, health grades, and risk summaries.
 """
 
-from typing import Dict, List
+
 from sober.detectors import Issue, Severity
 
 
 class SoberAuditReport:
-    def __init__(self, issues: List[Issue], files_scanned: int, duration_seconds: float):
+    def __init__(self, issues: list[Issue], files_scanned: int, duration_seconds: float):
         self.issues = issues
         self.files_scanned = files_scanned
         self.duration_seconds = duration_seconds
@@ -74,7 +74,7 @@ class SoberAuditReport:
     def auto_fixable_count(self) -> int:
         return sum(1 for i in self.issues if i.auto_fixable)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "sober_score": self.score,
             "grade": self.grade,

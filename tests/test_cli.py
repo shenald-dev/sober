@@ -1,5 +1,7 @@
 import json
+
 from typer.testing import CliRunner
+
 from sober.cli import app
 
 runner = CliRunner()
