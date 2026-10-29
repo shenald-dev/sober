@@ -5,7 +5,6 @@ CLI Entrypoint for SOBER - The Vibe Coding Hangover Cure.
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -33,7 +32,7 @@ def version_callback(value: bool):
 
 @app.callback()
 def common(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True
     ),
 ):
@@ -42,7 +41,7 @@ def common(
 
 @app.command(name="scan")
 def scan(
-    path: Path = typer.Argument(
+    path: Path = typer.Argument(  # noqa: B008
         Path("."),
         help="Target repository or folder path to audit (defaults to current directory).",
         exists=True,

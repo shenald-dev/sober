@@ -1,6 +1,7 @@
 from sober.core.scanner import FileToAudit
-from sober.detectors.ghost_code import audit_ghost_code
 from sober.detectors import Severity
+from sober.detectors.ghost_code import audit_ghost_code
+
 
 def test_detects_debug_print_and_console_log(tmp_path):
     py_file = tmp_path / "app.py"

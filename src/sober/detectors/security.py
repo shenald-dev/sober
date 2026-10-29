@@ -5,7 +5,6 @@ Flags hardcoded API keys, shell injection vectors, and dangerous execution calls
 
 import re
 from pathlib import Path
-from typing import List
 
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
@@ -29,7 +28,7 @@ INJECTION_PATTERNS = [
 ]
 
 
-def audit_security(file_audit: FileToAudit, project_root: Path) -> List[Issue]:
+def audit_security(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
     """Scan file for secrets, API keys, shell injections, and unsafe code patterns."""
     issues = []
     code = file_audit.read_text()

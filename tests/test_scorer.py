@@ -1,6 +1,7 @@
 from sober.core.scorer import SoberAuditReport
 from sober.detectors import Issue, Severity
 
+
 def test_perfect_score_when_no_issues():
     report = SoberAuditReport([], files_scanned=5, duration_seconds=0.1)
     assert report.score == 100

@@ -6,13 +6,12 @@ Catches duplicate functions and redundant helper implementations created across 
 import ast
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
 
-def extract_function_signatures(code: str, ext: str) -> List[Tuple[str, int]]:
+def extract_function_signatures(code: str, ext: str) -> list[tuple[str, int]]:
     """Extract declared function and method names with their line numbers."""
     functions = []
     if ext == ".py":
@@ -21,7 +20,7 @@ def extract_function_signatures(code: str, ext: str) -> List[Tuple[str, int]]:
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     functions.append((node.name, node.lineno))
-        except Exception:
+        except (SyntaxError, ValueError):
             for idx, line in enumerate(code.splitlines(), start=1):
                 m = re.match(r'^\s*def\s+([A-Za-z0-9_]+)\s*\(', line)
                 if m:
@@ -38,11 +37,11 @@ def extract_function_signatures(code: str, ext: str) -> List[Tuple[str, int]]:
     return functions
 
 
-def audit_duplicates(files: List[FileToAudit], project_root: Path) -> List[Issue]:
+def audit_duplicates(files: list[FileToAudit], project_root: Path) -> list[Issue]:
     """Scan across audited files to detect duplicated function names and definitions."""
     issues = []
     # Map function_name -> list of (file_rel, line_num)
-    registry: Dict[str, List[Tuple[str, int]]] = {}
+    registry: dict[str, list[tuple[str, int]]] = {}
 
     # Common generic lifecycle/test names to ignore
     IGNORED_NAMES = {

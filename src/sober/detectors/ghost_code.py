@@ -6,7 +6,6 @@ Catches silent error swallows, abandoned stubs, and leftover console/print state
 import ast
 import re
 from pathlib import Path
-from typing import List
 
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
@@ -30,7 +29,7 @@ STUB_PATTERNS = [
 ]
 
 
-def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> List[Issue]:
+def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
     """Audit file for ghost code, leftover debug statements, and incomplete AI stubs."""
     issues = []
     code = file_audit.read_text()
