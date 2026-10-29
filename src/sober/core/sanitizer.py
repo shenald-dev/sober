@@ -15,7 +15,7 @@ def cure_file(file_path: Path) -> tuple[int, list[str]]:
 
     try:
         content = file_path.read_text(encoding="utf-8", errors="replace")
-    except (OSError, UnicodeDecodeError):
+    except (OSError, UnicodeError):
         return 0, []
 
     ext = file_path.suffix.lower()

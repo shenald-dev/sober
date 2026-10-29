@@ -119,7 +119,7 @@ def extract_python_imports(code: str) -> list[tuple[str, int, str]]:
             elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
                 root_pkg = node.module.split(".")[0]
                 imports.append((root_pkg, node.lineno, f"from {node.module} import ..."))
-    except (SyntaxError, ValueError):
+    except SyntaxError:
         # Fallback to regex if file has partial syntax during audit
         for i, line in enumerate(code.splitlines(), start=1):
             line_str = line.strip()

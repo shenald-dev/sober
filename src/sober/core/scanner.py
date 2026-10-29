@@ -41,7 +41,7 @@ class FileToAudit:
     def read_text(self) -> str:
         try:
             return self.path.read_text(encoding="utf-8", errors="replace")
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeError):
             return ""
 
 
@@ -56,7 +56,7 @@ def is_git_repo(root: Path) -> bool:
             check=False,
         )
         return res.returncode == 0
-    except OSError:
+    except (subprocess.SubprocessError, OSError):
         return False
 
 

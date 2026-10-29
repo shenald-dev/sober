@@ -20,7 +20,7 @@ def extract_function_signatures(code: str, ext: str) -> list[tuple[str, int]]:
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     functions.append((node.name, node.lineno))
-        except (SyntaxError, ValueError):
+        except SyntaxError:
             for idx, line in enumerate(code.splitlines(), start=1):
                 m = re.match(r'^\s*def\s+([A-Za-z0-9_]+)\s*\(', line)
                 if m:
