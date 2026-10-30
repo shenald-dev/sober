@@ -15,7 +15,7 @@ def test_node_builtins_not_flagged(tmp_path):
     issues = audit_hallucinations(FileToAudit(f), tmp_path)
     assert len(issues) == 0
 
-def test_hallucinated_pypi_package_flagged(tmp_path, monkeypatch):
+def test_hallucinated_pypi_package_flagged(tmp_path):
     # Mock registry cache to simulate confirmed 404 for nonexistent package
     _REGISTRY_CACHE["totally-fake-hallucinated-package-xyz123"] = False
     f = tmp_path / "ai_code.py"
