@@ -1,0 +1,57 @@
+import os
+from pathlib import Path
+from sober.core.scanner import FileToAudit, is_git_repo, get_git_modified_files, get_all_code_files
+
+def test_file_to_audit(tmp_path):
+    f = tmp_path / "test.py"
+    f.write_text("content")
+
+    f_audit = FileToAudit(f)
+    assert f_audit.extension == ".py"
+    assert f_audit.read_text() == "content"
+
+def test_file_to_audit_non_existent(tmp_path):
+    f = tmp_path / "does_not_exist.py"
+    f_audit = FileToAudit(f)
+    assert f_audit.read_text() == ""
+
+def test_is_git_repo_false(tmp_path):
+    # tmp_path should not be a git repo
+    assert is_git_repo(tmp_path) is False
+
+def test_get_git_modified_files_not_git_repo(tmp_path):
+    files = get_git_modified_files(tmp_path)
+    assert files == []
+
+def test_get_all_code_files(tmp_path):
+    # Create some valid files
+    f1 = tmp_path / "test1.py"
+    f1.write_text("")
+    f2 = tmp_path / "test2.js"
+    f2.write_text("")
+
+    # Create ignored dir
+    node_modules = tmp_path / "node_modules"
+    node_modules.mkdir()
+    f3 = node_modules / "test3.py"
+    f3.write_text("")
+
+    # Create valid subdir
+    subdir = tmp_path / "src"
+    subdir.mkdir()
+    f4 = subdir / "test4.ts"
+    f4.write_text("")
+
+    # Create ignored file type
+    f5 = tmp_path / "test5.txt"
+    f5.write_text("")
+
+    files = get_all_code_files(tmp_path)
+
+    assert len(files) == 3
+    paths = [f.path for f in files]
+    assert f1 in paths
+    assert f2 in paths
+    assert f4 in paths
+    assert f3 not in paths
+    assert f5 not in paths
