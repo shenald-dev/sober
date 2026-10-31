@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+**[Pruned]:** Removed dead CLI options and callbacks (`common` and `version` in `src/sober/cli.py`) to eliminate codebase entropy.
+**[Added]:** Added edge-case unit tests for python/js import extractors and unified line parsing in the git scanner, increasing test coverage and QA robustness.
 **[Pruned]:** Removed unused `monkeypatch` parameter from hallucination test suite.
 **[Added]:** Added explicit tests for AST code duplication detector and core repository scanner logic, raising codebase test coverage to 77%.
 
