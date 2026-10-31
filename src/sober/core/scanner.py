@@ -109,8 +109,9 @@ def get_git_modified_files(root: Path) -> list[FileToAudit]:
                         count = 1
                         if "," in plus_part:
                             count = int(plus_part.split(",")[1])
-                        for l_num in range(start_line, start_line + max(count, 1)):
-                            files_map[current_file].diff_lines.add(l_num)
+                        if count > 0:
+                            for l_num in range(start_line, start_line + count):
+                                files_map[current_file].diff_lines.add(l_num)
                     except (ValueError, IndexError):
                         continue
 
