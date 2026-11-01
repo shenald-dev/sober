@@ -1,6 +1,6 @@
-from pathlib import Path
 from sober.core.scanner import FileToAudit
-from sober.detectors.duplicates import extract_function_signatures, audit_duplicates
+from sober.detectors.duplicates import audit_duplicates, extract_function_signatures
+
 
 def test_extract_function_signatures_py():
     code = """

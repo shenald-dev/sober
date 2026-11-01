@@ -31,8 +31,8 @@ def version_callback(value: bool):
 
 
 @app.callback()
-def common(
-    version: bool | None = typer.Option(
+def main_callback(
+    _version: bool | None = typer.Option(
         None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True
     ),
 ):

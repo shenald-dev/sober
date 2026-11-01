@@ -1,6 +1,5 @@
-import os
-from pathlib import Path
-from sober.core.scanner import FileToAudit, is_git_repo, get_git_modified_files, get_all_code_files
+from sober.core.scanner import FileToAudit, get_all_code_files, get_git_modified_files, is_git_repo
+
 
 def test_file_to_audit(tmp_path):
     f = tmp_path / "test.py"
@@ -55,3 +54,43 @@ def test_get_all_code_files(tmp_path):
     assert f4 in paths
     assert f3 not in paths
     assert f5 not in paths
+
+import subprocess
+
+def test_get_git_modified_files_unified_parsing(tmp_path):
+    # Initialize a git repo
+    subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=str(tmp_path), check=True)
+
+    f1 = tmp_path / "test1.py"
+    f1.write_text("line1\nline2\nline3\n")
+
+    subprocess.run(["git", "add", "."], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), check=True, capture_output=True)
+
+    # Modify the file
+    f1.write_text("line1\nnew_line2\nnew_line2_b\nline3\nnew_line_4\n")
+
+    # Do not commit, leave it in working tree
+    files = get_git_modified_files(tmp_path)
+
+    assert len(files) == 1
+    file_audit = files[0]
+    assert file_audit.path == f1
+    assert file_audit.is_git_diff is True
+    # The new file has diff on line 2, 3 and 5.
+    # diff expected: @@ -2 +2,2 @@, @@ -4 +5 @@
+    assert 2 in file_audit.diff_lines
+    assert 3 in file_audit.diff_lines
+    assert 5 in file_audit.diff_lines
+
+    # Add a new untracked file
+    f2 = tmp_path / "test2.js"
+    f2.write_text("console.log('hello');")
+
+    files = get_git_modified_files(tmp_path)
+    assert len(files) == 2
+    paths = {f.path for f in files}
+    assert f1 in paths
+    assert f2 in paths
