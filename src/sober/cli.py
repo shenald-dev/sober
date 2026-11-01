@@ -31,7 +31,7 @@ def version_callback(value: bool):
 
 
 @app.callback()
-def main_callback(
+def _main_callback(
     _version: bool | None = typer.Option(
         None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True
     ),
@@ -40,7 +40,7 @@ def main_callback(
 
 
 @app.command(name="scan")
-def scan(
+def _scan(
     path: Path = typer.Argument(  # noqa: B008
         Path("."),
         help="Target repository or folder path to audit (defaults to current directory).",

@@ -69,26 +69,38 @@ def get_git_modified_files(root: Path) -> list[FileToAudit]:
     try:
         # 1. Uncommitted and untracked files
         status_res = subprocess.run(
-            ["git", "status", "--porcelain", "-uall"],
+            ["git", "status", "--porcelain", "-z", "-uall"],
             cwd=str(root),
             capture_output=True,
             text=True,
             check=False,
         )
         if status_res.returncode == 0:
-            for line in status_res.stdout.splitlines():
-                if not line.strip():
+            parts = status_res.stdout.split('\0')
+            i = 0
+            while i < len(parts) - 1:
+                part = parts[i]
+                if not part:
+                    i += 1
                     continue
-                # Line format: XY filename or XY orig -> new
-                parts = line[3:].strip().split(" -> ")
-                rel_path = parts[-1].strip()
-                file_path = root / rel_path
-                if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
-                    files_map[file_path] = FileToAudit(file_path, is_git_diff=True)
+                status = part[:2]
+                rel_path = part[3:]
+
+                # Renames and copies consume two paths from the null-terminated output
+                if status[0] in ('R', 'C') or status[1] in ('R', 'C'):
+                    i += 2
+                else:
+                    i += 1
+
+                # Exclude deleted files
+                if status != 'D ' and status != ' D':
+                    file_path = root / rel_path
+                    if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+                        files_map[file_path] = FileToAudit(file_path, is_git_diff=True)
 
         # 2. Get specific modified line numbers from git diff
         diff_res = subprocess.run(
-            ["git", "diff", "HEAD", "--unified=0"],
+            ["git", "-c", "core.quotepath=false", "diff", "HEAD", "--unified=0"],
             cwd=str(root),
             capture_output=True,
             text=True,
@@ -98,7 +110,10 @@ def get_git_modified_files(root: Path) -> list[FileToAudit]:
             current_file: Path | None = None
             for line in diff_res.stdout.splitlines():
                 if line.startswith("+++ b/"):
-                    rel = line[6:]
+                    if line.endswith('\t'):
+                        rel = line[6:-1]
+                    else:
+                        rel = line[6:]
                     current_file = root / rel
                 elif line.startswith("@@ ") and current_file in files_map:
                     # e.g., @@ -10,3 +12,5 @@
