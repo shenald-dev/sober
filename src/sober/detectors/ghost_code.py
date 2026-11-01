@@ -45,23 +45,22 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
-                if isinstance(node, ast.ExceptHandler):
+                if isinstance(node, ast.ExceptHandler) and len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
                     # Check if handler body only has `pass`
-                    if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
-                        lineno = node.lineno
-                        if not file_audit.diff_lines or lineno in file_audit.diff_lines:
-                            issues.append(
-                                Issue(
-                                    category="Silent Error Swallow",
-                                    title="Blank 'except: pass' block",
-                                    description="AI swallowed exceptions with a blank pass, concealing critical failures in production.",
-                                    severity=Severity.HIGH,
-                                    file_path=file_rel,
-                                    line_number=lineno,
-                                    code_snippet="except: pass",
-                                    fix_suggestion="Log exception or handle specific error type gracefully.",
-                                )
+                    lineno = node.lineno
+                    if not file_audit.diff_lines or lineno in file_audit.diff_lines:
+                        issues.append(
+                            Issue(
+                                category="Silent Error Swallow",
+                                title="Blank 'except: pass' block",
+                                description="AI swallowed exceptions with a blank pass, concealing critical failures in production.",
+                                severity=Severity.HIGH,
+                                file_path=file_rel,
+                                line_number=lineno,
+                                code_snippet="except: pass",
+                                fix_suggestion="Log exception or handle specific error type gracefully.",
                             )
+                        )
         except (SyntaxError, ValueError):
             return issues
 
@@ -119,21 +118,20 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                 )
 
         # Silent Error Swallows for single-line python or JS
-        if ext == ".py" and SILENT_EXCEPT_LINE_PY.match(stripped):
+        if ext == ".py" and SILENT_EXCEPT_LINE_PY.match(stripped) and not any(i.line_number == idx and i.category == "Silent Error Swallow" for i in issues):
             # Only add if not already captured by AST
-            if not any(i.line_number == idx and i.category == "Silent Error Swallow" for i in issues):
-                issues.append(
-                    Issue(
-                        category="Silent Error Swallow",
-                        title="Blank 'except: pass' block",
-                        description="AI swallowed exceptions without logging, concealing critical failures in production.",
-                        severity=Severity.HIGH,
-                        file_path=file_rel,
-                        line_number=idx,
-                        code_snippet=stripped,
-                        fix_suggestion="Log exception or handle specific error type gracefully.",
-                    )
+            issues.append(
+                Issue(
+                    category="Silent Error Swallow",
+                    title="Blank 'except: pass' block",
+                    description="AI swallowed exceptions without logging, concealing critical failures in production.",
+                    severity=Severity.HIGH,
+                    file_path=file_rel,
+                    line_number=idx,
+                    code_snippet=stripped,
+                    fix_suggestion="Log exception or handle specific error type gracefully.",
                 )
+            )
 
         if ext in {".js", ".jsx", ".ts", ".tsx"} and SILENT_CATCH_JS.search(stripped):
             issues.append(
