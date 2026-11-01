@@ -57,6 +57,7 @@ def test_get_all_code_files(tmp_path):
 
 import subprocess
 
+
 def test_get_git_modified_files_unified_parsing(tmp_path):
     # Initialize a git repo
     subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)

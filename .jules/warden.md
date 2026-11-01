@@ -1,5 +1,10 @@
 # ATLAS-WARDEN Ledger — Sober
 
+## 2026-11-01 — Lifecycle & Assurance Ledger
+
+- **QA & Veto Actions:** Fixed `SIM102` nested if statements found by `ruff` in `src/sober/detectors/ghost_code.py`.
+- **Entropy Pruned:** Silenced Vulture false positives for Typer CLI options in `src/sober/cli.py` by prefixing function names with underscores.
+
 ## 2026-10-31 — Dead Code & Test Coverage Audit
 
 - **QA & Veto Actions:** Wrote missing edge-case unit tests for `get_git_modified_files` (unified diff line parsing) and `extract_js_imports`/`extract_python_imports` (parsing fallbacks & edge cases) to prevent regressions from recent optimizations.
