@@ -28,6 +28,7 @@ def test_hallucinated_pypi_package_flagged(tmp_path):
 
 from sober.detectors.hallucinations import extract_js_imports, extract_python_imports
 
+
 def test_extract_python_imports_edge_cases():
     code = """
 import numpy as np

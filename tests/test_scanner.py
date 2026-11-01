@@ -57,6 +57,7 @@ def test_get_all_code_files(tmp_path):
 
 import subprocess
 
+
 def test_get_git_modified_files_unified_parsing(tmp_path):
     # Initialize a git repo
     subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
@@ -94,3 +95,42 @@ def test_get_git_modified_files_unified_parsing(tmp_path):
     paths = {f.path for f in files}
     assert f1 in paths
     assert f2 in paths
+
+
+def test_get_git_modified_files_with_spaces_and_quotes(tmp_path):
+    subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=str(tmp_path), check=True)
+
+    f1 = tmp_path / "file with spaces.py"
+    f1.write_text("def a(): pass\n")
+
+    f2 = tmp_path / "中文.py"
+    f2.write_text("def b(): pass\n")
+
+    subprocess.run(["git", "add", "."], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), check=True, capture_output=True)
+
+    # Modify
+    f1.write_text("def a(): pass\n# mod\n")
+    f2.write_text("def b(): pass\n# mod\n")
+
+    # Rename file 2
+    subprocess.run(["git", "mv", "中文.py", "renamed 中文.py"], cwd=str(tmp_path), check=True)
+    f3 = tmp_path / "renamed 中文.py"
+
+    # Untracked file with space
+    f4 = tmp_path / "untracked file.ts"
+    f4.write_text("console.log('new');")
+
+    files = get_git_modified_files(tmp_path)
+
+    assert len(files) == 3
+    paths = {f.path for f in files}
+    assert f1 in paths
+    assert f3 in paths
+    assert f4 in paths
+
+    # Verify diff lines parsed successfully
+    f1_audit = next(f for f in files if f.path == f1)
+    assert 2 in f1_audit.diff_lines
