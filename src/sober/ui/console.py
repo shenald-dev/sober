@@ -9,7 +9,6 @@ if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
     except (AttributeError, OSError):
-        # Fallback gracefully if standard streams do not support reconfigure
         sys.stdout.flush()
 
 from rich.console import Console
@@ -107,7 +106,7 @@ def render_report(report: SoberAuditReport):
 def render_cure_results(cured_files: dict):
     """Print results of the auto-cure sanitizer."""
     if not cured_files:
-        console.print("[dim]No auto-fixable debug debris found.[/]")
+        console.print("[dim]No auto-fixable debug debris or AI chatter found.[/]")
         return
 
     table = Table(title="[bold green]💊 Auto-Cure Sanitization Report[/]", border_style="green")
@@ -121,4 +120,27 @@ def render_cure_results(cured_files: dict):
 
     console.print()
     console.print(table)
-    console.print(f"\n[bold green]✔ Successfully sanitized {total_removed} leftover debug statement(s).[/]\n")
+    console.print(f"\n[bold green]✔ Successfully sanitized {total_removed} leftover debug statement(s) and AI chatter.[/]\n")
+
+
+def render_hook_status(is_installed: bool, hook_path: str = ""):
+    """Render Git pre-commit hook installation status."""
+    if is_installed:
+        console.print(
+            Panel(
+                f"[bold green]✔ Git Pre-Commit Hook is Active[/]\n\n"
+                f"[dim]Hook Path:[/] [cyan]{hook_path}[/]\n"
+                f"[dim]Every git commit will automatically run 'sober scan --strict' to prevent committing AI slop.[/]",
+                title="[bold green]GIT HOOK: ENABLED[/]",
+                border_style="green",
+            )
+        )
+    else:
+        console.print(
+            Panel(
+                "[bold yellow]Git Pre-Commit Hook is Not Installed[/]\n\n"
+                "Run [bold cyan]sober hook install[/] to automatically block AI slop and secrets before every commit.",
+                title="[bold yellow]GIT HOOK: DISABLED[/]",
+                border_style="yellow",
+            )
+        )

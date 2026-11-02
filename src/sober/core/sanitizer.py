@@ -1,15 +1,17 @@
 """
-Sanitizer engine - cures code by auto-removing leftover debug statements and AI residue.
+Sanitizer engine - cures code by auto-removing leftover debug statements,
+dangling debuggers, and AI conversational chatter.
 """
 
 from pathlib import Path
 
 from sober.detectors import Issue
+from sober.detectors.chatter import CHATTER_PATTERNS
 from sober.detectors.ghost_code import DEBUG_LOG_JS, DEBUG_PRINT_PY, DEBUGGER_JS
 
 
 def cure_file(file_path: Path) -> tuple[int, list[str]]:
-    """Sanitize a single source file by stripping auto-fixable debug statements."""
+    """Sanitize a single source file by stripping auto-fixable debug statements and AI chatter."""
     if not file_path.exists():
         return 0, []
 
@@ -28,8 +30,18 @@ def cure_file(file_path: Path) -> tuple[int, list[str]]:
         stripped = line.strip()
         should_remove = False
 
-        if ext == ".py" and DEBUG_PRINT_PY.match(stripped) or ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped)):
+        # Debug prints & console logs
+        if ext == ".py" and DEBUG_PRINT_PY.match(stripped):
             should_remove = True
+        elif ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped)):
+            should_remove = True
+
+        # AI Chatter comments
+        if not should_remove:
+            for pattern, _ in CHATTER_PATTERNS:
+                if pattern.search(stripped):
+                    should_remove = True
+                    break
 
         if should_remove:
             removed_count += 1

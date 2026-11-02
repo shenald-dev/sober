@@ -1,6 +1,7 @@
 """
 Detector for Hallucinated or Slopsquatted dependencies.
-Verifies that newly introduced external imports actually exist in PyPI or npm.
+Verifies that newly introduced external imports actually exist in PyPI, npm,
+local manifests, or configured package whitelists.
 """
 
 import ast
@@ -10,6 +11,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from sober.core.config import SoberConfig
+from sober.core.manifest import ManifestInspector
+from sober.core.registry_cache import global_registry_cache
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
@@ -277,14 +281,19 @@ NODE_BUILTINS: set[str] = {
 }
 
 # In-memory registry cache to keep execution under 1 second
-_REGISTRY_CACHE = {}
+_REGISTRY_CACHE: dict[str, bool] = {}
 
 
 def is_pypi_package_real(package_name: str) -> bool:
-    """Verify package exists on PyPI."""
+    """Verify package exists on PyPI with local disk cache acceleration."""
     clean_name = package_name.lower().replace("_", "-")
     if clean_name in _REGISTRY_CACHE:
         return _REGISTRY_CACHE[clean_name]
+
+    cached = global_registry_cache.get(f"pypi:{clean_name}")
+    if cached is not None:
+        _REGISTRY_CACHE[clean_name] = cached
+        return cached
 
     url = f"https://pypi.org/pypi/{clean_name}/json"
     req = urllib.request.Request(url, headers={"User-Agent": "sober-audit-cli"})
@@ -292,10 +301,12 @@ def is_pypi_package_real(package_name: str) -> bool:
         with urllib.request.urlopen(req, timeout=2.5) as resp:
             is_valid = resp.status == 200
             _REGISTRY_CACHE[clean_name] = is_valid
+            global_registry_cache.set(f"pypi:{clean_name}", is_valid)
             return is_valid
     except urllib.error.HTTPError as e:
         if e.code == 404:
             _REGISTRY_CACHE[clean_name] = False
+            global_registry_cache.set(f"pypi:{clean_name}", False)
             return False
         _REGISTRY_CACHE[clean_name] = True
         return True
@@ -305,10 +316,15 @@ def is_pypi_package_real(package_name: str) -> bool:
 
 
 def is_npm_package_real(package_name: str) -> bool:
-    """Verify package exists on npm registry."""
+    """Verify package exists on npm registry with local disk cache acceleration."""
     clean_name = package_name.strip()
     if clean_name in _REGISTRY_CACHE:
         return _REGISTRY_CACHE[clean_name]
+
+    cached = global_registry_cache.get(f"npm:{clean_name}")
+    if cached is not None:
+        _REGISTRY_CACHE[clean_name] = cached
+        return cached
 
     url = f"https://registry.npmjs.org/{clean_name}"
     req = urllib.request.Request(url, headers={"User-Agent": "sober-audit-cli"})
@@ -316,10 +332,12 @@ def is_npm_package_real(package_name: str) -> bool:
         with urllib.request.urlopen(req, timeout=2.5) as resp:
             is_valid = resp.status == 200
             _REGISTRY_CACHE[clean_name] = is_valid
+            global_registry_cache.set(f"npm:{clean_name}", is_valid)
             return is_valid
     except urllib.error.HTTPError as e:
         if e.code == 404:
             _REGISTRY_CACHE[clean_name] = False
+            global_registry_cache.set(f"npm:{clean_name}", False)
             return False
         _REGISTRY_CACHE[clean_name] = True
         return True
@@ -382,7 +400,12 @@ def extract_js_imports(code: str) -> list[tuple[str, int, str]]:
     return imports
 
 
-def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
+def audit_hallucinations(
+    file_audit: FileToAudit,
+    project_root: Path,
+    manifest_inspector: ManifestInspector | None = None,
+    config: SoberConfig | None = None,
+) -> list[Issue]:
     """Scan file for hallucinated or non-existent external dependencies."""
     issues = []
     code = file_audit.read_text()
@@ -395,6 +418,9 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Is
         if file_audit.path.is_relative_to(project_root)
         else file_audit.path
     )
+
+    manifest = manifest_inspector or ManifestInspector(project_root)
+    cfg = config or SoberConfig()
 
     # 1. Python Audits
     if ext == ".py":
@@ -409,14 +435,16 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Is
         for pkg, lineno, snippet in imports:
             if pkg in PYTHON_STDLIB or pkg in local_modules:
                 continue
+            # Check local manifest declaration and user whitelist
+            if manifest.is_declared_python_package(pkg) or cfg.is_package_whitelisted(pkg):
+                continue
             if file_audit.diff_lines and lineno not in file_audit.diff_lines:
                 continue
             packages_to_check.append((pkg, lineno, snippet))
 
         if packages_to_check:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=min(10, len(packages_to_check))
-            ) as executor:
+            workers = min(cfg.max_workers, len(packages_to_check))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = {
                     executor.submit(is_pypi_package_real, pkg): (pkg, lineno, snippet)
                     for pkg, lineno, snippet in packages_to_check
@@ -428,12 +456,12 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Is
                             Issue(
                                 category="Hallucinated Dependency",
                                 title=f"Non-existent PyPI package '{pkg}'",
-                                description=f"Package '{pkg}' was imported by AI but does not exist on PyPI (potential hallucination or slopsquatting risk).",
+                                description=f"Package '{pkg}' was imported by AI but does not exist on PyPI or local manifests (potential hallucination or slopsquatting risk).",
                                 severity=Severity.CRITICAL,
                                 file_path=file_rel,
                                 line_number=lineno,
                                 code_snippet=snippet,
-                                fix_suggestion=f"Remove '{pkg}' or verify the correct library name in requirements.txt.",
+                                fix_suggestion=f"Remove '{pkg}', install the real package, or add to allowed_packages in sober.toml.",
                             )
                         )
 
@@ -444,14 +472,16 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Is
         for pkg, lineno, snippet in imports:
             if pkg in NODE_BUILTINS or pkg.startswith("node:"):
                 continue
+            # Check local package.json and user whitelist
+            if manifest.is_declared_js_package(pkg) or cfg.is_package_whitelisted(pkg):
+                continue
             if file_audit.diff_lines and lineno not in file_audit.diff_lines:
                 continue
             packages_to_check.append((pkg, lineno, snippet))
 
         if packages_to_check:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=min(10, len(packages_to_check))
-            ) as executor:
+            workers = min(cfg.max_workers, len(packages_to_check))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = {
                     executor.submit(is_npm_package_real, pkg): (pkg, lineno, snippet)
                     for pkg, lineno, snippet in packages_to_check
@@ -463,12 +493,12 @@ def audit_hallucinations(file_audit: FileToAudit, project_root: Path) -> list[Is
                             Issue(
                                 category="Hallucinated Dependency",
                                 title=f"Non-existent npm package '{pkg}'",
-                                description=f"Package '{pkg}' was imported by AI but does not exist on npm registry (slopsquatting vulnerability).",
+                                description=f"Package '{pkg}' was imported by AI but does not exist on npm registry or package.json (slopsquatting vulnerability).",
                                 severity=Severity.CRITICAL,
                                 file_path=file_rel,
                                 line_number=lineno,
                                 code_snippet=snippet,
-                                fix_suggestion="Install the real package or check for typos in package.json.",
+                                fix_suggestion=f"Install the real package or add '{pkg}' to allowed_packages in sober.toml.",
                             )
                         )
 

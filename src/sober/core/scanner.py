@@ -60,7 +60,7 @@ def is_git_repo(root: Path) -> bool:
         return False
 
 
-def get_git_modified_files(root: Path) -> list[FileToAudit]:
+def get_git_modified_files(root: Path, ignore_patterns: list[str] | None = None) -> list[FileToAudit]:
     """Retrieve modified, staged, and untracked files from git status and diff."""
     if not is_git_repo(root):
         return []
@@ -101,7 +101,6 @@ def get_git_modified_files(root: Path) -> list[FileToAudit]:
                     rel = line[6:]
                     current_file = root / rel
                 elif line.startswith("@@ ") and current_file in files_map:
-                    # e.g., @@ -10,3 +12,5 @@
                     try:
                         hunk_header = line.split("@@")[1].strip()
                         plus_part = hunk_header.split()[1]  # +12,5

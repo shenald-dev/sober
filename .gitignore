@@ -42,3 +42,6 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 .cache/
+
+# Bot tracking artifacts
+.jules/

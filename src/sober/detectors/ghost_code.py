@@ -18,6 +18,7 @@ DEBUGGER_JS = re.compile(r'^\s*debugger\s*;?', re.IGNORECASE)
 # Silent error swallow patterns
 SILENT_EXCEPT_LINE_PY = re.compile(r'^\s*except(\s+[A-Za-z0-9_]+)?\s*:\s*pass\s*(#.*)?$')
 SILENT_CATCH_JS = re.compile(r'catch\s*\([^)]*\)\s*\{\s*\}')
+SILENT_PROMISE_CATCH_JS = re.compile(r'\.catch\s*\(\s*(?:\(\s*\)\s*=>\s*\{\s*\}|\([^)]*\)\s*=>\s*\{\s*\})\s*\)')
 
 # Incomplete AI stubs
 STUB_PATTERNS = [
@@ -25,7 +26,8 @@ STUB_PATTERNS = [
     (re.compile(r'throw\s+new\s+Error\s*\(\s*["\']Not implemented["\']\s*\)', re.IGNORECASE), "Unimplemented Error stub"),
     (re.compile(r'#\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)', re.IGNORECASE), "Unresolved AI implementation TODO"),
     (re.compile(r'//\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)', re.IGNORECASE), "Unresolved AI implementation TODO"),
-    (re.compile(r'return\s*\{\s*["\']mock["\']\s*:\s*True\s*\}', re.IGNORECASE), "Hardcoded mock return artifact"),
+    (re.compile(r'return\s*\{\s*["\']mock["\']\s*:\s*(?:True|true)\s*\}', re.IGNORECASE), "Hardcoded mock return artifact"),
+    (re.compile(r'^\s*pass\s*#\s*TODO', re.IGNORECASE), "Unfinished placeholder pass statement"),
 ]
 
 
@@ -120,7 +122,6 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
 
         # Silent Error Swallows for single-line python or JS
         if ext == ".py" and SILENT_EXCEPT_LINE_PY.match(stripped):
-            # Only add if not already captured by AST
             if not any(i.line_number == idx and i.category == "Silent Error Swallow" for i in issues):
                 issues.append(
                     Issue(
@@ -135,19 +136,33 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                     )
                 )
 
-        if ext in {".js", ".jsx", ".ts", ".tsx"} and SILENT_CATCH_JS.search(stripped):
-            issues.append(
-                Issue(
-                    category="Silent Error Swallow",
-                    title="Empty catch {} block",
-                    description="Empty catch block silently discarding errors.",
-                    severity=Severity.HIGH,
-                    file_path=file_rel,
-                    line_number=idx,
-                    code_snippet=stripped,
-                    fix_suggestion="Log error message or rethrow.",
+        if ext in {".js", ".jsx", ".ts", ".tsx"}:
+            if SILENT_CATCH_JS.search(stripped):
+                issues.append(
+                    Issue(
+                        category="Silent Error Swallow",
+                        title="Empty catch {} block",
+                        description="Empty catch block silently discarding errors.",
+                        severity=Severity.HIGH,
+                        file_path=file_rel,
+                        line_number=idx,
+                        code_snippet=stripped,
+                        fix_suggestion="Log error message or rethrow.",
+                    )
                 )
-            )
+            elif SILENT_PROMISE_CATCH_JS.search(stripped):
+                issues.append(
+                    Issue(
+                        category="Silent Error Swallow",
+                        title="Empty .catch(() => {}) handler",
+                        description="Empty promise rejection handler silently swallowing asynchronous errors.",
+                        severity=Severity.HIGH,
+                        file_path=file_rel,
+                        line_number=idx,
+                        code_snippet=stripped,
+                        fix_suggestion="Add error handling or logging inside .catch().",
+                    )
+                )
 
         # AI Stubs & Incomplete Logic
         for pattern, desc in STUB_PATTERNS:

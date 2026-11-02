@@ -1,16 +1,16 @@
 [project]
 name = "sober"
-version = "0.1.0"
+version = "1.0.0"
 description = "🍸 The Vibe Coding Hangover Cure. Audit, sanitize, and proofread AI-generated code before pushing to production."
 readme = "README.md"
 authors = [
-    { name = "shenald-dev", email = "bot@shenald.dev" }
+    { name = "shenald-dev", email = "shenald@users.noreply.github.com" }
 ]
 license = { text = "MIT" }
 requires-python = ">=3.10"
 keywords = ["ai", "vibe-coding", "code-quality", "audit", "security", "cli", "hangover", "slop-detector"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
