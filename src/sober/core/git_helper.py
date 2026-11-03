@@ -36,15 +36,14 @@ def get_git_diff_range_files(root: Path, revision_range: str) -> list[FileToAudi
     try:
         # 1. Get changed files in revision range
         diff_names = subprocess.run(
-            ["git", "diff", "--name-only", revision_range],
+            ["git", "diff", "--name-only", "-z", revision_range],
             cwd=str(root),
             capture_output=True,
             text=True,
             check=False,
         )
         if diff_names.returncode == 0:
-            for line in diff_names.stdout.splitlines():
-                rel_path = line.strip()
+            for rel_path in diff_names.stdout.split("\0"):
                 if not rel_path:
                     continue
                 file_path = root / rel_path
@@ -53,7 +52,7 @@ def get_git_diff_range_files(root: Path, revision_range: str) -> list[FileToAudi
 
         # 2. Get specific line numbers
         diff_res = subprocess.run(
-            ["git", "diff", revision_range, "--unified=0"],
+            ["git", "-c", "core.quotepath=false", "diff", revision_range, "--unified=0"],
             cwd=str(root),
             capture_output=True,
             text=True,
