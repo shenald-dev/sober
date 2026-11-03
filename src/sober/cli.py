@@ -5,7 +5,6 @@ CLI Entrypoint for SOBER - The Vibe Coding Hangover Cure.
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -52,9 +51,9 @@ def version_callback(value: bool):
 
 
 @app.callback(invoke_without_command=True)
-def main_callback(
+def _main_callback(
     ctx: typer.Context,
-    _version: Optional[bool] = typer.Option(
+    _version: bool | None = typer.Option(
         None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True
     ),
 ):
@@ -70,7 +69,7 @@ def _execute_audit(
     markdown_output: bool = False,
     cure: bool = False,
     strict: bool = False,
-    min_score_override: Optional[float] = None,
+    min_score_override: float | None = None,
 ):
     """Core audit runner for scan and diff commands."""
     start_time = time.time()
@@ -178,7 +177,7 @@ def scan(
         "-s",
         help="Fail with exit code 1 if the Sober Score is below threshold or has critical issues.",
     ),
-    min_score: Optional[float] = typer.Option(
+    min_score: float | None = typer.Option(
         None,
         "--min-score",
         help="Override minimum score threshold for strict mode (default: 95.0).",
@@ -227,7 +226,7 @@ def scan(
 
 
 @app.command(name="diff")
-def diff_command(
+def _diff_command(
     revision: str = typer.Argument(
         ...,
         help="Git revision or commit range to audit (e.g. 'HEAD~1', 'main..HEAD', 'origin/main').",
@@ -244,7 +243,7 @@ def diff_command(
     ),
     cure: bool = typer.Option(False, "--cure", "-c", help="Auto-sanitize detected debug statements."),
     strict: bool = typer.Option(False, "--strict", "-s", help="Fail if sobriety threshold not met."),
-    min_score: Optional[float] = typer.Option(None, "--min-score", help="Override minimum score threshold."),
+    min_score: float | None = typer.Option(None, "--min-score", help="Override minimum score threshold."),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON."),
     sarif_output: bool = typer.Option(False, "--sarif", help="Output SARIF 2.1.0."),
     markdown_output: bool = typer.Option(False, "--markdown", "-m", help="Output Markdown report."),
@@ -268,7 +267,7 @@ def diff_command(
 
 
 @app.command(name="cure")
-def cure_command(
+def _cure_command(
     path: Path = typer.Argument(
         Path("."),
         help="Target folder to sanitize debug debris and AI chatter.",
@@ -295,7 +294,7 @@ def cure_command(
 
 
 @hook_app.command(name="install")
-def hook_install(
+def _hook_install(
     path: Path = typer.Argument(Path("."), help="Target Git repository root path."),
 ):
     """Install a native Git pre-commit hook that runs sober scan before every commit."""
@@ -308,7 +307,7 @@ def hook_install(
 
 
 @hook_app.command(name="uninstall")
-def hook_uninstall(
+def _hook_uninstall(
     path: Path = typer.Argument(Path("."), help="Target Git repository root path."),
 ):
     """Remove the sober Git pre-commit hook."""
@@ -320,7 +319,7 @@ def hook_uninstall(
 
 
 @hook_app.command(name="status")
-def hook_status(
+def _hook_status(
     path: Path = typer.Argument(Path("."), help="Target Git repository root path."),
 ):
     """Check the status of the Git pre-commit hook."""
@@ -331,7 +330,7 @@ def hook_status(
 
 
 @app.command(name="init")
-def init_command(
+def _init_command(
     path: Path = typer.Argument(Path("."), help="Target directory to create sober.toml."),
 ):
     """Initialize a starter sober.toml configuration file."""

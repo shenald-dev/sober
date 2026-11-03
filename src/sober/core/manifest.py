@@ -43,7 +43,7 @@ class ManifestInspector:
                         if pkg:
                             self._python_packages.add(pkg)
                 # tool.poetry.dependencies
-                for dep in data.get("tool", {}).get("poetry", {}).get("dependencies", {}).keys():
+                for dep in data.get("tool", {}).get("poetry", {}).get("dependencies", {}):
                     self._python_packages.add(dep.lower().replace("_", "-"))
             except (OSError, tomllib.TOMLDecodeError):
                 self._python_packages.update([])
@@ -65,7 +65,7 @@ class ManifestInspector:
             try:
                 data = tomllib.loads(pipfile.read_bytes().decode("utf-8", errors="replace"))
                 for section in ["packages", "dev-packages"]:
-                    for pkg in data.get(section, {}).keys():
+                    for pkg in data.get(section, {}):
                         self._python_packages.add(pkg.lower().replace("_", "-"))
             except (OSError, tomllib.TOMLDecodeError):
                 self._python_packages.update([])
@@ -76,7 +76,7 @@ class ManifestInspector:
             try:
                 data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
                 for dep_type in ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]:
-                    for pkg in data.get(dep_type, {}).keys():
+                    for pkg in data.get(dep_type, {}):
                         self._js_packages.add(pkg)
             except (OSError, json.JSONDecodeError):
                 self._js_packages.update([])

@@ -24,7 +24,7 @@ def test_git_hook_lifecycle(tmp_path):
     assert get_git_hook_status(tmp_path) is True
 
     # Uninstall
-    success, msg = uninstall_git_hook(tmp_path)
+    success, _msg = uninstall_git_hook(tmp_path)
     assert success is True
     assert get_git_hook_status(tmp_path) is False
 

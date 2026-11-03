@@ -31,9 +31,7 @@ def cure_file(file_path: Path) -> tuple[int, list[str]]:
         should_remove = False
 
         # Debug prints & console logs
-        if ext == ".py" and DEBUG_PRINT_PY.match(stripped):
-            should_remove = True
-        elif ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped)):
+        if ext == ".py" and DEBUG_PRINT_PY.match(stripped) or ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped)):
             should_remove = True
 
         # AI Chatter comments
