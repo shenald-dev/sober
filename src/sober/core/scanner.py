@@ -60,7 +60,7 @@ def is_git_repo(root: Path) -> bool:
         return False
 
 
-def get_git_modified_files(root: Path, ignore_patterns: list[str] | None = None) -> list[FileToAudit]:
+def get_git_modified_files(root: Path) -> list[FileToAudit]:
     """Retrieve modified, staged, and untracked files from git status and diff."""
     if not is_git_repo(root):
         return []

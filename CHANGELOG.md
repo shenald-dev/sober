@@ -5,6 +5,10 @@ All notable changes to `sober` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+- **[Pruned]:** Removed unused `ignore_patterns` parameter from `get_git_modified_files` signature.
+- **[Optimized]:** Suppressed Vulture false-positives on Typer CLI options by prefixing function names with underscores.
+
 ## [1.0.0] - 2026-11-02
 
 ### 🚀 Major v1.0 Production Release

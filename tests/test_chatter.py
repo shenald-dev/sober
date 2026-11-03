@@ -28,7 +28,7 @@ export function greet(name: string): string {
 }
 """)
 
-    count, removed = cure_file(f)
+    count, _removed = cure_file(f)
     assert count == 2
     content = f.read_text()
     assert "Here is the complete function" not in content
