@@ -16,6 +16,7 @@ from sober.core.manifest import ManifestInspector
 from sober.core.registry_cache import global_registry_cache
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
+from sober.detectors.slopsquatting import find_slopsquatted_target
 
 # Standard library module sets to prevent false alarms
 PYTHON_STDLIB: set[str] = {
@@ -440,7 +441,29 @@ def audit_hallucinations(
                 continue
             if file_audit.diff_lines and lineno not in file_audit.diff_lines:
                 continue
-            packages_to_check.append((pkg, lineno, snippet))
+
+            # Check for slopsquatting / typosquatting resemblance to popular package
+            squat_target, dist = find_slopsquatted_target(pkg, ecosystem="python")
+            if squat_target:
+                issues.append(
+                    Issue(
+                        category="Slopsquatting Risk",
+                        title=f"Suspicious dependency '{pkg}' resembles '{squat_target}'",
+                        description=(
+                            f"Imported package '{pkg}' has a distance of {dist} from popular library '{squat_target}'. "
+                            "AI often hallucinates typosquatted package names, exposing projects to supply-chain malware."
+                        ),
+                        severity=Severity.CRITICAL,
+                        file_path=file_rel,
+                        line_number=lineno,
+                        code_snippet=snippet,
+                        fix_suggestion=f"Did you mean '{squat_target}'? Change import to '{squat_target}' or declare in manifests.",
+                    )
+                )
+                continue
+
+            if not cfg.offline_mode:
+                packages_to_check.append((pkg, lineno, snippet))
 
         if packages_to_check:
             workers = min(cfg.max_workers, len(packages_to_check))
@@ -477,7 +500,29 @@ def audit_hallucinations(
                 continue
             if file_audit.diff_lines and lineno not in file_audit.diff_lines:
                 continue
-            packages_to_check.append((pkg, lineno, snippet))
+
+            # Check for slopsquatting in npm
+            squat_target, dist = find_slopsquatted_target(pkg, ecosystem="npm")
+            if squat_target:
+                issues.append(
+                    Issue(
+                        category="Slopsquatting Risk",
+                        title=f"Suspicious dependency '{pkg}' resembles '{squat_target}'",
+                        description=(
+                            f"Imported npm package '{pkg}' has a distance of {dist} from popular library '{squat_target}'. "
+                            "AI often hallucinates typosquatted package names, exposing projects to supply-chain malware."
+                        ),
+                        severity=Severity.CRITICAL,
+                        file_path=file_rel,
+                        line_number=lineno,
+                        code_snippet=snippet,
+                        fix_suggestion=f"Did you mean '{squat_target}'? Change import to '{squat_target}' or declare in package.json.",
+                    )
+                )
+                continue
+
+            if not cfg.offline_mode:
+                packages_to_check.append((pkg, lineno, snippet))
 
         if packages_to_check:
             workers = min(cfg.max_workers, len(packages_to_check))

@@ -13,6 +13,8 @@ SECRET_PATTERNS = [
     (re.compile(r'sk-[A-Za-z0-9_-]{32,}'), "OpenAI / LLM API Key leaked"),
     (re.compile(r'sk-ant-[A-Za-z0-9_-]{32,}'), "Anthropic API Key leaked"),
     (re.compile(r'AIzaSy[A-Za-z0-9_-]{33}'), "Google Gemini / Cloud API Key leaked"),
+    (re.compile(r'gsk_[A-Za-z0-9]{48}'), "Groq API Key leaked"),
+    (re.compile(r'sbp_[A-Za-z0-9]{40}'), "Supabase Secret / Service Role Key leaked"),
     (re.compile(r'hf_[A-Za-z0-9]{34,}'), "Hugging Face Access Token leaked"),
     (re.compile(r'ghp_[A-Za-z0-9]{36}'), "GitHub Personal Access Token leaked"),
     (re.compile(r'github_pat_[A-Za-z0-9_]{82}'), "GitHub Fine-Grained Token leaked"),
@@ -22,8 +24,12 @@ SECRET_PATTERNS = [
     (re.compile(r'xox[baprs]-[0-9a-zA-Z-]{24,}'), "Slack Token leaked"),
     (re.compile(r'r8_[0-9a-zA-Z]{37}'), "Replicate API Token leaked"),
     (re.compile(r're_[0-9a-zA-Z]{24,}'), "Resend API Key leaked"),
-    (re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'), "Raw Private Cryptographic Key embedded"),
+    (re.compile(r'SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}'), "SendGrid API Key leaked"),
+    (re.compile(r'https://hooks\.slack\.com/services/T[0-9A-Za-z_]{8,12}/B[0-9A-Za-z_]{8,12}/[0-9A-Za-z_]{20,26}'), "Slack Incoming Webhook URL leaked"),
+    (re.compile(r'https://discord(?:app)?\.com/api/webhooks/[0-9]{17,20}/[A-Za-z0-9_-]{60,70}'), "Discord Webhook URL leaked"),
+    (re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----'), "Raw Private Cryptographic Key embedded"),
     (re.compile(r'''(?i)(?:api_key|apikey|secret_key|auth_token)\s*=\s*['"][A-Za-z0-9_\-\.]{24,}['"]'''), "Hardcoded API secret token"),
+    (re.compile(r'''(?i)(?:password|passwd|pwd)\s*=\s*['"](?:admin|password|123456|root|admin123|changeme|default|test)['"]'''), "Hardcoded trivial / default password credential"),
 ]
 
 INJECTION_PATTERNS = [

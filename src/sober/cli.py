@@ -9,6 +9,7 @@ from pathlib import Path
 import typer
 
 from sober import __version__
+from sober.core.ci import init_github_actions_workflow
 from sober.core.config import load_config
 from sober.core.git_helper import (
     get_git_diff_range_files,
@@ -18,9 +19,12 @@ from sober.core.git_helper import (
     uninstall_git_hook,
 )
 from sober.core.manifest import ManifestInspector
+from sober.core.remediation import generate_agent_remediation_prompt
 from sober.core.sanitizer import apply_cure
 from sober.core.scanner import FileToAudit, get_all_code_files, get_git_modified_files
 from sober.core.scorer import SoberAuditReport
+from sober.core.watcher import LiveSoberWatcher
+from sober.detectors.antipatterns import audit_antipatterns
 from sober.detectors.chatter import audit_chatter
 from sober.detectors.duplicates import audit_duplicates
 from sober.detectors.ghost_code import audit_ghost_code
@@ -42,6 +46,9 @@ app = typer.Typer(
 
 hook_app = typer.Typer(help="Manage Git pre-commit hooks for automated sobriety checks.", add_completion=False)
 app.add_typer(hook_app, name="hook")
+
+ci_app = typer.Typer(help="Manage CI/CD workflows and automated GitHub Actions gates.", add_completion=False)
+app.add_typer(ci_app, name="ci")
 
 
 def version_callback(value: bool):
@@ -70,10 +77,13 @@ def _execute_audit(
     cure: bool = False,
     strict: bool = False,
     min_score_override: float | None = None,
-):
-    """Core audit runner for scan and diff commands."""
+    offline: bool = False,
+) -> SoberAuditReport:
+    """Core audit runner for scan, diff, and explain commands."""
     start_time = time.time()
     config = load_config(path)
+    if offline:
+        config.offline_mode = True
     manifest = ManifestInspector(path)
 
     # Filter out files ignored by config
@@ -85,23 +95,24 @@ def _execute_audit(
     files = filtered_files
 
     if not files:
+        empty_report = SoberAuditReport([], files_scanned=0, duration_seconds=0.0)
         if json_output:
             print(json.dumps({"error": "No supported source files found to audit."}))
         elif sarif_output:
-            empty_report = SoberAuditReport([], files_scanned=0, duration_seconds=0.0)
             print(json.dumps(empty_report.to_sarif(), indent=2))
         elif markdown_output:
-            empty_report = SoberAuditReport([], files_scanned=0, duration_seconds=0.0)
             print(empty_report.to_markdown())
         else:
             console.print("[bold yellow]No supported source files (.py, .ts, .tsx, .js, .jsx) found to audit.[/]")
-        return
+        return empty_report
 
     # Run detectors
     all_issues = []
     for f in files:
         if config.is_detector_enabled("hallucinations"):
             all_issues.extend(audit_hallucinations(f, path, manifest_inspector=manifest, config=config))
+        if config.is_detector_enabled("antipatterns"):
+            all_issues.extend(audit_antipatterns(f, path))
         if config.is_detector_enabled("ghost_code"):
             all_issues.extend(audit_ghost_code(f, path))
         if config.is_detector_enabled("security"):
@@ -148,6 +159,8 @@ def _execute_audit(
             )
         raise typer.Exit(1)
 
+    return report
+
 
 @app.command(name="scan")
 def scan(
@@ -169,7 +182,7 @@ def scan(
         False,
         "--cure",
         "-c",
-        help="Automatically sanitize and strip leftover debug statements & AI debris.",
+        help="Automatically sanitize and strip leftover debug statements, markdown fences, & AI debris.",
     ),
     strict: bool = typer.Option(
         False,
@@ -181,6 +194,11 @@ def scan(
         None,
         "--min-score",
         help="Override minimum score threshold for strict mode (default: 95.0).",
+    ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Disable external network queries (PyPI/npm) and perform air-gapped manifest-only audits.",
     ),
     json_output: bool = typer.Option(
         False,
@@ -200,7 +218,7 @@ def scan(
         help="Output GitHub Flavored Markdown summary suitable for PR comments.",
     ),
 ):
-    """Scan code for AI hallucinations, ghost code, security leaks, and slop."""
+    """Scan code for AI hallucinations, slopsquatting, ghost code, security leaks, and hangover slop."""
     if not (json_output or sarif_output or markdown_output):
         print_banner()
 
@@ -222,6 +240,7 @@ def scan(
         cure=cure,
         strict=strict,
         min_score_override=min_score,
+        offline=offline,
     )
 
 
@@ -244,6 +263,7 @@ def _diff_command(
     cure: bool = typer.Option(False, "--cure", "-c", help="Auto-sanitize detected debug statements."),
     strict: bool = typer.Option(False, "--strict", "-s", help="Fail if sobriety threshold not met."),
     min_score: float | None = typer.Option(None, "--min-score", help="Override minimum score threshold."),
+    offline: bool = typer.Option(False, "--offline", help="Perform offline manifest audit without external network calls."),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON."),
     sarif_output: bool = typer.Option(False, "--sarif", help="Output SARIF 2.1.0."),
     markdown_output: bool = typer.Option(False, "--markdown", "-m", help="Output Markdown report."),
@@ -263,7 +283,88 @@ def _diff_command(
         cure=cure,
         strict=strict,
         min_score_override=min_score,
+        offline=offline,
     )
+
+
+@app.command(name="watch")
+def watch_command(
+    path: Path = typer.Argument(
+        Path("."),
+        help="Target repository to monitor in real-time.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+    ),
+    interval: float = typer.Option(0.5, "--interval", "-i", help="Polling interval in seconds."),
+    cure: bool = typer.Option(False, "--cure", "-c", help="Auto-cure detected debug statements and chatter on save."),
+):
+    """Live continuous watcher daemon for real-time AI vibe-coding feedback."""
+    print_banner()
+    console.print(f"[bold cyan]👀 SOBER Live Watcher active on {path.resolve()}[/] [dim](Ctrl+C to exit)[/]\n")
+
+    def _on_change():
+        console.clear()
+        print_banner()
+        console.print("[bold yellow]⚡ Change detected! Re-auditing sobriety...[/]\n")
+        files = get_git_modified_files(path)
+        if not files:
+            files = get_all_code_files(path)
+        _execute_audit(files=files, path=path, cure=cure)
+
+    watcher = LiveSoberWatcher(path, poll_interval=interval)
+    try:
+        watcher.watch(_on_change)
+    except KeyboardInterrupt:
+        console.print("\n[bold cyan]SOBER Live Watcher stopped.[/]")
+
+
+@app.command(name="explain")
+def explain_command(
+    path: Path = typer.Argument(
+        Path("."),
+        help="Target repository or folder path to audit.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+    ),
+    all_files: bool = typer.Option(False, "--all", "-a", help="Audit all files instead of only uncommitted changes."),
+):
+    """Generate high-density prompt context for autonomous coding agents (Claude, Cursor, Aider) to self-heal."""
+    files = get_all_code_files(path) if all_files else get_git_modified_files(path)
+    if not files and not all_files:
+        files = get_all_code_files(path)
+
+    config = load_config(path)
+    manifest = ManifestInspector(path)
+
+    all_issues = []
+    for f in files:
+        if config.is_detector_enabled("hallucinations"):
+            all_issues.extend(audit_hallucinations(f, path, manifest_inspector=manifest, config=config))
+        if config.is_detector_enabled("antipatterns"):
+            all_issues.extend(audit_antipatterns(f, path))
+        if config.is_detector_enabled("ghost_code"):
+            all_issues.extend(audit_ghost_code(f, path))
+        if config.is_detector_enabled("security"):
+            all_issues.extend(audit_security(f, path, custom_secret_patterns=config.custom_secret_patterns))
+        if config.is_detector_enabled("chatter"):
+            all_issues.extend(audit_chatter(f, path))
+
+    if config.is_detector_enabled("duplicates"):
+        all_issues.extend(audit_duplicates(files, path))
+
+    report = SoberAuditReport(all_issues, files_scanned=len(files), duration_seconds=0.0)
+    prompt = generate_agent_remediation_prompt(
+        issues=report.issues,
+        score=report.score,
+        grade=report.grade,
+        status_label=report.status_label,
+        files_scanned=len(files),
+    )
+    print(prompt)
 
 
 @app.command(name="cure")
@@ -329,6 +430,15 @@ def _hook_status(
     render_hook_status(installed, hook_path)
 
 
+@ci_app.command(name="init")
+def _ci_init(
+    path: Path = typer.Argument(Path("."), help="Target repository root path."),
+):
+    """Initialize a GitHub Actions workflow for automated PR sobriety checks."""
+    wf_path = init_github_actions_workflow(path)
+    console.print(f"[bold green]✔ Generated GitHub Actions workflow at {wf_path}[/]\n")
+
+
 @app.command(name="init")
 def _init_command(
     path: Path = typer.Argument(Path("."), help="Target directory to create sober.toml."),
@@ -339,13 +449,14 @@ def _init_command(
         console.print(f"[bold yellow]Configuration file {target_file} already exists.[/]")
         raise typer.Exit(0)
 
-    starter_config = """# SOBER Configuration File
+    starter_config = """# SOBER Configuration File (v2.0)
 # Documentation: https://github.com/shenald-dev/sober
 
 [sober]
 min_score = 95.0
 fail_on_critical = true
 max_workers = 10
+offline_mode = false
 
 # Paths to ignore during audits
 ignore_paths = [

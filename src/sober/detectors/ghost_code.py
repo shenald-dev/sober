@@ -14,6 +14,7 @@ from sober.detectors import Issue, Severity
 DEBUG_PRINT_PY = re.compile(r'^\s*print\s*\(\s*(f?["\'](DEBUG|TODO|HERE|test|\d{3,})|["\']-{3,}|1111+)', re.IGNORECASE)
 DEBUG_LOG_JS = re.compile(r'^\s*console\.(log|debug|warn)\s*\(\s*(["\'](DEBUG|HERE|test|\d{3,})|1111+)', re.IGNORECASE)
 DEBUGGER_JS = re.compile(r'^\s*debugger\s*;?', re.IGNORECASE)
+MARKDOWN_FENCE = re.compile(r'^\s*```(?:[a-zA-Z0-9_-]+)?\s*$', re.IGNORECASE)
 
 # Silent error swallow patterns
 SILENT_EXCEPT_LINE_PY = re.compile(r'^\s*except(\s+[A-Za-z0-9_]+)?\s*:\s*pass\s*(#.*)?$')
@@ -65,7 +66,7 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                                 )
                             )
         except (SyntaxError, ValueError):
-            return issues
+            pass
 
     # 2. Line-by-line checks
     for idx, line in enumerate(lines, start=1):
@@ -73,6 +74,22 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
             continue
 
         stripped = line.strip()
+
+        # Stray copy-pasted markdown fences
+        if MARKDOWN_FENCE.match(stripped):
+            issues.append(
+                Issue(
+                    category="AI Slop Residue",
+                    title="Stray markdown code fence",
+                    description="AI assistant markdown code block delimiter (```) accidentally copy-pasted into source file.",
+                    severity=Severity.LOW,
+                    file_path=file_rel,
+                    line_number=idx,
+                    code_snippet=stripped,
+                    fix_suggestion="Remove stray markdown code fence.",
+                    auto_fixable=True,
+                )
+            )
 
         # Debug Statements
         if ext == ".py" and DEBUG_PRINT_PY.match(stripped):

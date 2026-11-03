@@ -30,6 +30,8 @@
 - [🚀 Core Detection Pillars](#-core-detection-pillars)
 - [⚡ Quick Start Guide](#-quick-start-guide)
 - [💻 CLI Usage & Commands](#-cli-usage--commands)
+- [👀 Real-Time Live Watcher (`sober watch`)](#-real-time-live-watcher-sober-watch)
+- [🤖 Agent Self-Healing Remediation (`sober explain`)](#-agent-self-healing-remediation-sober-explain)
 - [⚙️ Configuration (`sober.toml`)](#️-configuration-sobertoml)
 - [🛡️ Native Git Hooks & CI/CD SARIF](#️-native-git-hooks--cicd-sarif)
 - [🏗️ Architecture](#️-architecture)
@@ -41,11 +43,14 @@
 
 You just spent 3 hours vibe-coding with **Claude Code**, **Cursor**, **Windsurf**, or **Copilot**. Your prototype spins up blindingly fast, but you have that familiar, sinking feeling:
 
-- *Did the AI hallucinate a non-existent package that leaves you vulnerable to slopsquatting supply-chain malware?*
-- *Did it leave 15 leftover `print(f"DEBUG: ...")`, `console.log("HERE")`, and `debugger;` statements in production files?*
+- *Did the AI hallucinate a typosquatted package like `reqeusts` or `nummpy` that leaves you vulnerable to slopsquatting supply-chain malware?*
+- *Did it invoke `requests.get()` or `fetch()` without a timeout, causing production processes to hang forever on network stalls?*
+- *Did it generate authentication tokens using insecure `random.randint()` or `Math.random()`?*
+- *Did it directly interpolate untrusted user strings into LLM prompt templates (`f"...{user_msg}..."`), opening prompt injection vulnerabilities?*
+- *Did it leave 15 leftover `print(f"DEBUG: ...")`, `console.log("HERE")`, markdown code fences, and `debugger;` statements in production files?*
 - *Did it embed conversational assistant comments like `// Certainly! Here is the updated code...` in source files?*
 - *Did it silently swallow fatal database errors with `except: pass` or empty `catch {}` blocks?*
-- *Did it commit a live OpenAI, Anthropic, Gemini, Stripe, or Hugging Face API key directly into your git history?*
+- *Did it commit a live OpenAI, Anthropic, Gemini, Groq, Supabase, Stripe, or Hugging Face API key directly into your git history?*
 - *Did it disable TLS certificates (`verify=False`) or introduce unsafe deserialization vectors?*
 - *Did it re-invent helper functions that already existed in your repository three folders away?*
 
@@ -57,7 +62,7 @@ Standard `git diff` was built for humans reviewing 5-line edits—not humans aud
 
 ## 🌟 What is Sober?
 
-`sober` is an ultra-fast, zero-config CLI that audits your uncommitted git changes, branches, or entire repositories in **<200ms**. It detects AI-introduced hallucinations, conversational chatter, slop residue, silent error swallows, duplicate logic, and secret leaks, providing a crystal-clear **Sober Score (0–100%)** before you push to production.
+`sober` is an ultra-fast, zero-config CLI that audits your uncommitted git changes, branches, or entire repositories in **<200ms**. It detects AI-introduced hallucinations, slopsquatting, reliability antipatterns, conversational chatter, slop residue, silent error swallows, duplicate logic, and secret leaks, providing a crystal-clear **Sober Score (0–100%)** before you push to production.
 
 ---
 
@@ -65,13 +70,14 @@ Standard `git diff` was built for humans reviewing 5-line edits—not humans aud
 
 | Pillar | Detection Engine | Severity |
 | :--- | :--- | :---: |
-| 🧪 **Hallucination & Slopsquatting** | Cross-references new imports against local manifests (`requirements.txt`, `pyproject.toml`, `package.json`) and live PyPI/npm registries with local disk cache acceleration. | `CRITICAL` |
-| 🔑 **Secrets & Leaks** | Catches hardcoded OpenAI, Anthropic, Google Gemini, Hugging Face, GitHub PATs, AWS, Stripe Live, Pinecone, Slack, Replicate, Resend keys, and raw private keys. | `CRITICAL` |
+| 🧪 **Hallucination & Slopsquatting** | Cross-references new imports against local manifests, live PyPI/npm registries, and Damerau-Levenshtein similarity to popular libraries (e.g. `reqeusts` vs `requests`). | `CRITICAL` |
+| 🛡️ **Dangerous AI Antipatterns** | Catches omitted HTTP timeouts (`requests.get`, `fetch`), insecure pseudo-random tokens (`random.choice`), prompt injection vectors (`f"...{user_input}..."`), and client-side system prompt leakage. | `HIGH` / `CRITICAL` |
+| 🔑 **Secrets & Leaks** | Catches hardcoded OpenAI, Anthropic, Gemini, Groq, Supabase, Hugging Face, GitHub PATs, AWS, Stripe Live, Pinecone, Slack, Discord, SendGrid, and trivial default passwords. | `CRITICAL` |
 | 🛡️ **Vulnerability Vectors** | Detects raw SQL string formatting, `shell=True` command injection, disabled TLS/SSL (`verify=False`), unsafe pickle/YAML deserialization, and trivial JWT secrets. | `HIGH` |
 | 👻 **Ghost Code & Error Swallows** | Flags blank `except: pass`, empty `catch {}` blocks, empty promise catches, and dangling `debugger;` breakpoints. | `HIGH` |
 | 🤖 **AI Conversational Chatter** | Detects assistant prompt leakage and conversational text (`Certainly! Here is...`, `As an AI language model...`, `Let me know if you need adjustments`). | `LOW` *(Auto-Cureable)* |
 | 🧩 **AST Duplication** | Catches AI agents re-inventing existing project helper utilities across files instead of importing them. | `MEDIUM` |
-| 🧹 **Debug Debris** | Finds temporary `print(f"DEBUG...")`, `console.log("here")`, and lingering breakpoints. | `LOW` *(Auto-Cureable)* |
+| 🧹 **Debug Debris & Fences** | Finds temporary `print(f"DEBUG...")`, `console.log("here")`, lingering breakpoints, and stray markdown code fences. | `LOW` *(Auto-Cureable)* |
 
 ---
 
@@ -88,7 +94,7 @@ pip install "git+https://github.com/shenald-dev/sober.git"
 Or install the pre-built wheel directly from the [latest GitHub Release](https://github.com/shenald-dev/sober/releases/latest):
 
 ```bash
-pip install https://github.com/shenald-dev/sober/releases/download/v1.0.0/sober-1.0.0-py3-none-any.whl
+pip install https://github.com/shenald-dev/sober/releases/download/v2.0.0/sober-2.0.0-py3-none-any.whl
 ```
 
 Or run directly with `pipx` or `uv`:
@@ -110,8 +116,15 @@ Audit your staged and uncommitted git changes instantly:
 sober scan
 ```
 
-### 2. Auto-Cure AI Residue & Chatter
-Automatically strip leftover debug print statements, console logs, dangling debuggers, and AI chatter comments:
+### 2. Air-Gapped Offline Audit (`--offline`)
+Perform zero-network audits verifying dependencies strictly against local manifests and disk cache:
+
+```bash
+sober scan --offline
+```
+
+### 3. Auto-Cure AI Residue & Chatter
+Automatically strip leftover debug print statements, console logs, dangling debuggers, stray markdown fences, and AI chatter comments:
 
 ```bash
 sober scan --cure
@@ -119,7 +132,7 @@ sober scan --cure
 sober cure
 ```
 
-### 3. Git Commit Range & PR Branch Auditing (`diff`)
+### 4. Git Commit Range & PR Branch Auditing (`diff`)
 Audit changes introduced across a PR branch or commit range:
 
 ```bash
@@ -130,14 +143,14 @@ sober diff main..HEAD
 sober diff HEAD~1
 ```
 
-### 4. Full Repository Scan
+### 5. Full Repository Scan
 Scan all files in the project instead of just git diff changes:
 
 ```bash
 sober scan --all
 ```
 
-### 5. Strict Mode (Pre-Commit / CI)
+### 6. Strict Mode (Pre-Commit / CI)
 Fails with exit code `1` if your **Sober Score** is below threshold (default: 95%) or if any critical issues are found:
 
 ```bash
@@ -146,7 +159,7 @@ sober scan --strict
 sober scan --strict --min-score 90
 ```
 
-### 6. GitHub Security SARIF & PR Markdown Export
+### 7. GitHub Security SARIF & PR Markdown Export
 Generate SARIF 2.1.0 for GitHub Code Scanning or Markdown summary tables for automated PR review comments:
 
 ```bash
@@ -157,7 +170,7 @@ sober scan --sarif > sober-results.sarif
 sober scan --markdown
 ```
 
-### 7. Native Zero-Dependency Git Hook Manager
+### 8. Native Zero-Dependency Git Hook Manager
 Install an automated pre-commit hook directly into `.git/hooks/pre-commit`:
 
 ```bash
@@ -171,7 +184,14 @@ sober hook status
 sober hook uninstall
 ```
 
-### 8. Project Configuration Initialization
+### 9. Automated GitHub Actions CI Workflow Setup
+Bootstrap `.github/workflows/sober-guard.yml` in one command:
+
+```bash
+sober ci init
+```
+
+### 10. Project Configuration Initialization
 Generate a starter `sober.toml` configuration file:
 
 ```bash
@@ -180,16 +200,47 @@ sober init
 
 ---
 
+## 👀 Real-Time Live Watcher (`sober watch`)
+
+Keep a live HUD open alongside your editor while vibe-coding with Cursor, Windsurf, or Claude Code:
+
+```bash
+sober watch
+# Custom polling interval:
+sober watch --interval 0.5
+# Auto-cure debris on save:
+sober watch --cure
+```
+
+Whenever files are saved, `sober` immediately re-audits the project and updates your sobriety score in real-time.
+
+---
+
+## 🤖 Agent Self-Healing Remediation (`sober explain`)
+
+Feed diagnostic audit context directly back to your AI coding agent (Claude Code, Cursor Agent, Copilot Workspace, Aider, Devin):
+
+```bash
+sober explain
+# Or pipe directly to clipboard / agent:
+sober explain | your-agent-fixer
+```
+
+Outputs a high-density, zero-hallucination directive containing exact file locations, code snippets, and unambiguous surgical instructions to fix every defect.
+
+---
+
 ## ⚙️ Configuration (`sober.toml`)
 
 Configure `sober` on a workspace or project level using `sober.toml` or `pyproject.toml` (`[tool.sober]`):
 
 ```toml
-# sober.toml
+# sober.toml (v2.0)
 [sober]
 min_score = 95.0
 fail_on_critical = true
 max_workers = 10
+offline_mode = false
 
 # Paths to ignore during audits
 ignore_paths = [
@@ -227,24 +278,30 @@ sober hook install
 
 Now, every `git commit` automatically triggers `sober scan --strict`, preventing AI slop or accidental credential leaks from ever entering git history!
 
-### GitHub Actions CI / Code Scanning Workflow
+### One-Command GitHub Actions CI Generator
 
-Add `sober` to `.github/workflows/sober.yml`:
+```bash
+sober ci init
+```
+
+Generates `.github/workflows/sober-guard.yml`:
 
 ```yaml
-name: Sober AI Code Audit
+name: SOBER Code Sobriety Radar
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, master]
+  push:
+    branches: [main, master]
 
 jobs:
-  audit:
+  sober-audit:
+    name: AI Hangover & Security Audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -253,21 +310,25 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install sober
-        run: pip install sober
+      - name: Install SOBER
+        run: pip install git+https://github.com/shenald-dev/sober.git
 
-      - name: Run Strict Audit
-        run: sober scan --strict
-
-      - name: Generate SARIF Security Report
-        if: always()
-        run: sober scan --sarif > sober-report.sarif
+      - name: Run SOBER Audit (SARIF & Markdown)
+        run: |
+          sober scan --all --sarif > sober.sarif
+          sober scan --all --markdown > sober-summary.md
+          cat sober-summary.md >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
 
       - name: Upload SARIF to GitHub Code Scanning
-        if: always()
         uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          sarif_file: sober-report.sarif
+          sarif_file: sober.sarif
+          category: sober-hangover-guard
+
+      - name: Strict Sobriety Gate
+        run: sober scan --all --strict --min-score 90
 ```
 
 ---
@@ -321,25 +382,21 @@ jobs:
                     ┌─────────────────────────┐
                     │ Detection Pillar Pool   │
                     │ • Slopsquatting / PyPI  │
-                    │ • Secrets & Leaks       │
-                    │ • AI Chatter & Debris   │
+                    │ • Dangerous Antipatterns│
+                    │ • Secrets & Webhooks    │
+                    │ • AI Chatter & Fences   │
                     │ • Silent Error Swallows │
                     │ • AST Duplication       │
                     └───────────┬─────────────┘
                                 │
-                                ▼
-                    ┌─────────────────────────┐
-                    │   Sobriety HUD & Export │
-                    │ • Rich Cyberpunk Radar  │
-                    │ • SARIF 2.1.0 Security  │
-                    │ • PR Markdown Tables    │
-                    └───────────┬─────────────┘
-                                │
-                                ▼
-                    ┌─────────────────────────┐
-                    │  Auto-Cure Sanitizer    │
-                    │ (Debug prints/chatters) │
-                    └─────────────────────────┘
+         ┌──────────────────────┼──────────────────────┐
+         ▼                      ▼                      ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│ Sobriety Radar   │   │ Live Vibe Watch  │   │ Agent Remediation│
+│ • Terminal HUD   │   │ • File monitor   │   │ • sober explain  │
+│ • SARIF 2.1.0    │   │ • Real-time HUD  │   │ • Self-healing   │
+│ • Markdown PR    │   │ • Auto-cure      │   │   directive      │
+└──────────────────┘   └──────────────────┘   └──────────────────┘
 ```
 
 ---

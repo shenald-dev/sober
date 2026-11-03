@@ -1,17 +1,21 @@
 """
 Sanitizer engine - cures code by auto-removing leftover debug statements,
-dangling debuggers, and AI conversational chatter.
+dangling debuggers, AI conversational chatter, and copy-paste markdown fences.
 """
 
+import re
 from pathlib import Path
 
 from sober.detectors import Issue
 from sober.detectors.chatter import CHATTER_PATTERNS
 from sober.detectors.ghost_code import DEBUG_LOG_JS, DEBUG_PRINT_PY, DEBUGGER_JS
 
+# Markdown code fence regex accidentally copy-pasted into source code
+MARKDOWN_FENCE_REGEX = re.compile(r'^\s*```(?:python|javascript|typescript|js|ts|json)?\s*$', re.IGNORECASE)
+
 
 def cure_file(file_path: Path) -> tuple[int, list[str]]:
-    """Sanitize a single source file by stripping auto-fixable debug statements and AI chatter."""
+    """Sanitize a single source file by stripping auto-fixable debug statements, AI chatter, and copy-paste markdown fences."""
     if not file_path.exists():
         return 0, []
 
@@ -31,7 +35,13 @@ def cure_file(file_path: Path) -> tuple[int, list[str]]:
         should_remove = False
 
         # Debug prints & console logs
-        if ext == ".py" and DEBUG_PRINT_PY.match(stripped) or ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped)):
+        if (ext == ".py" and DEBUG_PRINT_PY.match(stripped)) or (
+            ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped))
+        ):
+            should_remove = True
+
+        # Copy-pasted markdown fences (e.g. ```python or ```)
+        if not should_remove and MARKDOWN_FENCE_REGEX.match(stripped):
             should_remove = True
 
         # AI Chatter comments

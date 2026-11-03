@@ -5,9 +5,42 @@ All notable changes to `sober` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-- **[Pruned]:** Removed unused `ignore_patterns` parameter from `get_git_modified_files` signature.
-- **[Optimized]:** Suppressed Vulture false-positives on Typer CLI options by prefixing function names with underscores.
+---
+
+## [2.0.0] - 2026-11-03
+
+### 🚀 Major v2.0 Flagship Production Release
+
+#### Added
+- **Dangerous AI Code Patterns Engine (`sober.detectors.antipatterns`)**:
+  - Detection of omitted HTTP request timeouts (`requests.get/post`, `httpx.get/post`, `fetch()`) preventing catastrophic production process hangs (`HIGH`).
+  - Detection of insecure pseudo-random generation (`random.randint`, `random.choice`, `Math.random`) used for security tokens and secret keys (`HIGH`).
+  - Detection of direct unescaped/unvalidated string interpolation into LLM prompt templates (`f"...{user_input}..."`), preventing prompt injection and jailbreaks (`CRITICAL`).
+  - Detection of confidential internal system instructions and persona prompts embedded in client-side code (`.js/.ts`) (`HIGH`).
+- **Slopsquatting & Typosquatting Defense Engine (`sober.detectors.slopsquatting`)**:
+  - Damerau-Levenshtein distance calculation comparing imported dependencies against the top 100 most popular Python and npm packages.
+  - Instantly flags typosquatted hallucinated package names (e.g. `reqeusts` vs `requests`, `nummpy` vs `numpy`, `axois` vs `axios`) to defend against AI supply-chain injection attacks (`CRITICAL`).
+- **Air-Gapped Offline Mode (`sober scan --offline`, `offline_mode = true`)**:
+  - Allows zero-network local audits verifying imports exclusively against local manifests, standard library, and local disk cache without network latency or external queries.
+- **Live Vibe-Coding Watcher Daemon (`sober watch`)**:
+  - Sub-second filesystem monitoring daemon designed for real-time pair programming with Cursor, Windsurf, Claude Code, and Copilot.
+  - Automatically re-audits code upon save and renders a persistent live sobriety dashboard with current Sober Score.
+- **AI Agent Self-Healing Remediation Context (`sober explain` / `sober prompt`)**:
+  - High-density, zero-hallucination markdown prompt generator tailored to feed audit results directly back into LLM coding agents (Cursor, Claude Code, Aider, Devin).
+- **Expanded Modern Secret & Key Detection**:
+  - Added detection patterns for Groq (`gsk_...`), Supabase (`sbp_...`), SendGrid (`SG....`), Slack Incoming Webhooks, Discord Webhooks, and hardcoded trivial default passwords (`password = "admin"`).
+- **Automated GitHub Actions CI Generator (`sober ci init`)**:
+  - One-command bootstrapping of `.github/workflows/sober-guard.yml` configured to upload SARIF 2.1.0 to GitHub Code Scanning Alerts and enforce PR sobriety gates.
+- **Enhanced Auto-Cure Engine (`sober cure` / `--cure`)**:
+  - Strips stray markdown code fences (``` or ```python) accidentally copy-pasted into source code files.
+- **Comprehensive v2.0.0 Test Suite**:
+  - Added 28 new unit and integration tests across antipatterns, slopsquatting, live watcher, remediation prompt generator, and CLI v2 workflows (80 tests passing, 84% coverage).
+
+#### Changed
+- Promoted package version to `2.0.0`.
+- Updated starter `sober.toml` config to include `offline_mode` and new detector documentation.
+
+---
 
 ## [1.0.0] - 2026-11-02
 

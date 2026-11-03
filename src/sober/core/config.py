@@ -22,6 +22,7 @@ class SoberConfig:
     disabled_detectors: list[str] = field(default_factory=list)
     custom_secret_patterns: list[dict[str, str]] = field(default_factory=list)
     max_workers: int = 10
+    offline_mode: bool = False
 
     def is_path_ignored(self, rel_path: str) -> bool:
         """Check if relative file path matches any ignore glob patterns."""
@@ -77,6 +78,7 @@ def load_config(root_path: Path) -> SoberConfig:
                     disabled_detectors=list(section.get("disabled_detectors", [])),
                     custom_secret_patterns=list(section.get("custom_secret_patterns", [])),
                     max_workers=int(section.get("max_workers", 10)),
+                    offline_mode=bool(section.get("offline_mode", False)),
                 )
             except Exception:
                 # If TOML has errors, skip to next candidate

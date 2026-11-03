@@ -1,6 +1,6 @@
 [project]
 name = "sober"
-version = "1.0.0"
+version = "2.0.0"
 description = "🍸 The Vibe Coding Hangover Cure. Audit, sanitize, and proofread AI-generated code before pushing to production."
 readme = "README.md"
 authors = [
