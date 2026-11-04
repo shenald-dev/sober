@@ -3,6 +3,7 @@ Live file watcher daemon for real-time SOBER auditing during AI vibe-coding sess
 Monitors repository source files and continuously updates the sobriety score as AI edits code.
 """
 
+import logging
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -25,7 +26,7 @@ class LiveSoberWatcher:
             try:
                 mtimes[str(f.path)] = f.path.stat().st_mtime
             except OSError:
-                pass
+                logging.debug(f"Failed to stat {f.path}", exc_info=True)
         return mtimes
 
     def watch(
