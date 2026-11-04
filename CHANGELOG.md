@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+- **[Fixed]:** Added robust logging to graceful exception fallbacks to prevent silent failures.
+
 ## [2.0.0] - 2026-11-03
 
 ### 🚀 Major v2.0 Flagship Production Release

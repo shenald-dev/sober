@@ -4,6 +4,7 @@ Prevents redundant network calls to PyPI and npm registries across runs.
 """
 
 import json
+import logging
 import os
 import sys
 import threading
@@ -44,7 +45,8 @@ class RegistryCache:
                         k: v for k, v in data.items()
                         if isinstance(v, dict) and v.get("expires_at", 0) > now
                     }
-                except Exception:
+                except Exception:  # noqa: BLE001
+                    logging.debug(f"Failed to load cache from {self.cache_file}", exc_info=True)
                     self._cache = {}
 
     def save(self):
