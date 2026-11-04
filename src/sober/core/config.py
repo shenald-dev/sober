@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import logging
+
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -80,7 +82,8 @@ def load_config(root_path: Path) -> SoberConfig:
                     max_workers=int(section.get("max_workers", 10)),
                     offline_mode=bool(section.get("offline_mode", False)),
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001
+                logging.debug(f"Failed to parse config candidate {candidate}", exc_info=True)
                 # If TOML has errors, skip to next candidate
                 continue
 

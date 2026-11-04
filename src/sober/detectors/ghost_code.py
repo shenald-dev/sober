@@ -4,6 +4,7 @@ Catches silent error swallows, abandoned stubs, and leftover console/print state
 """
 
 import ast
+import logging
 import re
 from pathlib import Path
 
@@ -66,7 +67,7 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                                 )
                             )
         except (SyntaxError, ValueError):
-            pass
+            logging.debug(f"Failed to parse python file for ghost code check: {file_audit.path}", exc_info=True)
 
     # 2. Line-by-line checks
     for idx, line in enumerate(lines, start=1):
