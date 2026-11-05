@@ -62,6 +62,18 @@ def test_get_all_code_files(tmp_path):
     assert f5 not in paths
 
 
+def test_parse_diff_path():
+    from sober.core.scanner import _parse_diff_path
+    assert _parse_diff_path("+++ b/test.py") == "test.py"
+    assert _parse_diff_path("+++ b/space file.py") == "space file.py"
+    assert _parse_diff_path("+++ b/space file.py\t") == "space file.py"
+    assert _parse_diff_path('+++ "b/\\"quotes\\".py"') == '"quotes".py'
+    assert _parse_diff_path('+++ "b/test \\"with\\" quotes and spaces.py"') == 'test "with" quotes and spaces.py'
+    assert _parse_diff_path('+++ "b/backslash\\\\file.py"') == 'backslash\\file.py'
+    assert _parse_diff_path('--- a/test.py') is None
+    assert _parse_diff_path('+++ /dev/null') is None
+
+
 def test_get_git_modified_files_unified_parsing(tmp_path):
     # Initialize a git repo
     subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
