@@ -45,7 +45,7 @@ class RegistryCache:
                         k: v for k, v in data.items()
                         if isinstance(v, dict) and v.get("expires_at", 0) > now
                     }
-                except Exception:  # noqa: BLE001
+                except Exception:
                     logging.debug(f"Failed to load cache from {self.cache_file}", exc_info=True)
                     self._cache = {}
 

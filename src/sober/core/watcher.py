@@ -5,8 +5,8 @@ Monitors repository source files and continuously updates the sobriety score as 
 
 import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 from sober.core.scanner import get_all_code_files
 
@@ -32,7 +32,7 @@ class LiveSoberWatcher:
     def watch(
         self,
         on_change_callback: Callable[[], None],
-        max_iterations: Optional[int] = None,
+        max_iterations: int | None = None,
     ):
         """Watch loop. Calls on_change_callback whenever a file is modified."""
         iterations = 0
