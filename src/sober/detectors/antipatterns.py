@@ -12,10 +12,6 @@ from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
 # Regex patterns for Python and JS/TS HTTP calls lacking timeouts
-PY_HTTP_CALL_REGEX = re.compile(
-    r'\b(?:requests|httpx)\.(?:get|post|put|patch|delete|request)\s*\([^)]*\)',
-    re.IGNORECASE,
-)
 JS_FETCH_CALL_REGEX = re.compile(
     r'\bfetch\s*\(\s*[^,\)]+\s*\)',
     re.IGNORECASE,

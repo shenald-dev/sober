@@ -101,7 +101,7 @@ def get_git_hooks_dir(root: Path) -> Path | None:
                 hooks_dir = common_dir / "hooks"
                 hooks_dir.mkdir(parents=True, exist_ok=True)
                 return hooks_dir
-        except Exception:  # noqa: BLE001
+        except Exception:
             logging.debug("Failed to read gitdir for worktree hooks resolution", exc_info=True)
             return None
     return None
@@ -151,7 +151,7 @@ def get_git_hook_status(root: Path) -> bool:
         try:
             content = hook_file.read_text(encoding="utf-8", errors="replace")
             return "sober" in content
-        except Exception:  # noqa: BLE001
+        except Exception:
             logging.debug(f"Failed to read hook file {hook_file}", exc_info=True)
             return False
     return False

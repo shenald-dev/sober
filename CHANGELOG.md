@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - **[Fixed]:** Added robust logging to graceful exception fallbacks to prevent silent failures.
+- **[Pruned]:** Removed unused `PY_HTTP_CALL_REGEX` variable from `sober.detectors.antipatterns` and renamed Typer CLI functions for strict dead code elimination.
 
 ## [2.0.0] - 2026-11-03
 
