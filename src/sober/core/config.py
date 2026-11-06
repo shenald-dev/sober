@@ -3,11 +3,10 @@ Configuration loader for SOBER - supports sober.toml and pyproject.toml [tool.so
 """
 
 import fnmatch
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-
-import logging
 
 try:
     import tomllib
@@ -82,7 +81,7 @@ def load_config(root_path: Path) -> SoberConfig:
                     max_workers=int(section.get("max_workers", 10)),
                     offline_mode=bool(section.get("offline_mode", False)),
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logging.debug(f"Failed to parse config candidate {candidate}", exc_info=True)
                 # If TOML has errors, skip to next candidate
                 continue

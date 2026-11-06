@@ -288,7 +288,7 @@ def _diff_command(
 
 
 @app.command(name="watch")
-def watch_command(
+def _watch_command(
     path: Path = typer.Argument(
         Path("."),
         help="Target repository to monitor in real-time.",
@@ -321,7 +321,7 @@ def watch_command(
 
 
 @app.command(name="explain")
-def explain_command(
+def _explain_command(
     path: Path = typer.Argument(
         Path("."),
         help="Target repository or folder path to audit.",
