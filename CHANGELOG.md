@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+- **[Fixed]:** Suppress `vulture` dead-code false positives on Typer commands by configuring `ignore_names` in `pyproject.toml` to ignore the prepended underscores.
+- **[Fixed]:** Repaired Git diff parsing mechanisms in `sober.core.scanner` and `sober.core.git_helper` to correctly parse and handle modifications on paths with spaces or quotation marks.
+- **[Fixed]:** Addressed a bug preventing proper installation of pre-commit hooks in Git worktrees by resolving relative `gitdir:` paths correctly against the worktree root.
 - **[Fixed]:** Added robust logging to graceful exception fallbacks to prevent silent failures.
 - **[Pruned]:** Removed unused `PY_HTTP_CALL_REGEX` variable from `sober.detectors.antipatterns` and renamed Typer CLI functions for strict dead code elimination.
 
@@ -85,6 +88,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto-Cure (`--cure`)**: Automatically cleans leftover debug logs and breakpoints.
 - **Strict Pre-Commit & CI Mode (`--strict`)**: Seamless integration with Git hooks and GitHub Actions.
 
-## [Unreleased]
-**[Fixed]:** Repaired Git diff parsing mechanisms in `sober.core.scanner` and `sober.core.git_helper` to correctly parse and handle modifications on paths with spaces or quotation marks.
-**[Fixed]:** Addressed a bug preventing proper installation of pre-commit hooks in Git worktrees by resolving relative `gitdir:` paths correctly against the worktree root.
