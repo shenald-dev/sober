@@ -45,22 +45,6 @@ class FileToAudit:
             return ""
 
 
-def _parse_diff_path(line: str) -> str | None:
-    """Parse the file path from a git diff +++ line, handling quotes and spaces."""
-    if not line.startswith("+++ "):
-        return None
-    path_str = line[4:]
-    if "\t" in path_str:
-        path_str = path_str.split("\t", 1)[0]
-
-    if path_str.startswith('"') and path_str.endswith('"'):
-        path_str = path_str[1:-1].replace('\\"', '"').replace('\\\\', '\\')
-
-    if path_str.startswith("b/"):
-        return path_str[2:]
-    return None
-
-
 def is_git_repo(root: Path) -> bool:
     """Check if the directory is inside a Git repository."""
     try:
@@ -78,6 +62,8 @@ def is_git_repo(root: Path) -> bool:
 
 def get_git_modified_files(root: Path) -> list[FileToAudit]:
     """Retrieve modified, staged, and untracked files from git status and diff."""
+    from sober.core.git_helper import _parse_diff_path
+
     if not is_git_repo(root):
         return []
 

@@ -63,7 +63,7 @@ def test_get_all_code_files(tmp_path):
 
 
 def test_parse_diff_path():
-    from sober.core.scanner import _parse_diff_path
+    from sober.core.git_helper import _parse_diff_path
     assert _parse_diff_path("+++ b/test.py") == "test.py"
     assert _parse_diff_path("+++ b/space file.py") == "space file.py"
     assert _parse_diff_path("+++ b/space file.py\t") == "space file.py"
