@@ -83,3 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sober Score**: Computes 0–100% sobriety telemetry with health status indicators.
 - **Auto-Cure (`--cure`)**: Automatically cleans leftover debug logs and breakpoints.
 - **Strict Pre-Commit & CI Mode (`--strict`)**: Seamless integration with Git hooks and GitHub Actions.
+
+## [Unreleased]
+**[Fixed]:** Repaired Git diff parsing mechanisms in `sober.core.scanner` and `sober.core.git_helper` to correctly parse and handle modifications on paths with spaces or quotation marks.
+**[Fixed]:** Addressed a bug preventing proper installation of pre-commit hooks in Git worktrees by resolving relative `gitdir:` paths correctly against the worktree root.

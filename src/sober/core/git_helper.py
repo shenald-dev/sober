@@ -27,6 +27,22 @@ exit 0
 """
 
 
+def _parse_diff_path(line: str) -> str | None:
+    """Parse the file path from a git diff +++ line, handling quotes and spaces."""
+    if not line.startswith("+++ "):
+        return None
+    path_str = line[4:]
+    if "\t" in path_str:
+        path_str = path_str.split("\t", 1)[0]
+
+    if path_str.startswith('"') and path_str.endswith('"'):
+        path_str = path_str[1:-1].replace('\\"', '"').replace('\\\\', '\\')
+
+    if path_str.startswith("b/"):
+        return path_str[2:]
+    return None
+
+
 def get_git_diff_range_files(root: Path, revision_range: str) -> list[FileToAudit]:
     """Retrieve modified files and changed line numbers for a specific git revision range (e.g. main..HEAD)."""
     if not is_git_repo(root):
@@ -62,9 +78,9 @@ def get_git_diff_range_files(root: Path, revision_range: str) -> list[FileToAudi
         if diff_res.returncode == 0:
             current_file: Path | None = None
             for line in diff_res.stdout.splitlines():
-                if line.startswith("+++ b/"):
-                    rel = line[6:]
-                    current_file = root / rel
+                if line.startswith("+++ "):
+                    rel = _parse_diff_path(line)
+                    current_file = (root / rel) if rel else None
                 elif line.startswith("@@ ") and current_file in files_map:
                     try:
                         hunk_header = line.split("@@")[1].strip()
@@ -97,11 +113,12 @@ def get_git_hooks_dir(root: Path) -> Path | None:
         try:
             line = git_dir.read_text(encoding="utf-8").strip()
             if line.startswith("gitdir:"):
-                common_dir = Path(line.split(":", 1)[1].strip())
+                common_dir_str = line.split(":", 1)[1].strip()
+                common_dir = (root / common_dir_str).resolve()
                 hooks_dir = common_dir / "hooks"
                 hooks_dir.mkdir(parents=True, exist_ok=True)
                 return hooks_dir
-        except Exception:  # noqa: BLE001
+        except Exception:
             logging.debug("Failed to read gitdir for worktree hooks resolution", exc_info=True)
             return None
     return None
@@ -151,7 +168,7 @@ def get_git_hook_status(root: Path) -> bool:
         try:
             content = hook_file.read_text(encoding="utf-8", errors="replace")
             return "sober" in content
-        except Exception:  # noqa: BLE001
+        except Exception:
             logging.debug(f"Failed to read hook file {hook_file}", exc_info=True)
             return False
     return False
