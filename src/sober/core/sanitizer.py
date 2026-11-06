@@ -11,7 +11,9 @@ from sober.detectors.chatter import CHATTER_PATTERNS
 from sober.detectors.ghost_code import DEBUG_LOG_JS, DEBUG_PRINT_PY, DEBUGGER_JS
 
 # Markdown code fence regex accidentally copy-pasted into source code
-MARKDOWN_FENCE_REGEX = re.compile(r'^\s*```(?:python|javascript|typescript|js|ts|json)?\s*$', re.IGNORECASE)
+MARKDOWN_FENCE_REGEX = re.compile(
+    r"^\s*```(?:python|javascript|typescript|js|ts|json)?\s*$", re.IGNORECASE
+)
 
 
 def cure_file(file_path: Path) -> tuple[int, list[str]]:
@@ -36,7 +38,8 @@ def cure_file(file_path: Path) -> tuple[int, list[str]]:
 
         # Debug prints & console logs
         if (ext == ".py" and DEBUG_PRINT_PY.match(stripped)) or (
-            ext in {".js", ".jsx", ".ts", ".tsx"} and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped))
+            ext in {".js", ".jsx", ".ts", ".tsx"}
+            and (DEBUG_LOG_JS.match(stripped) or DEBUGGER_JS.match(stripped))
         ):
             should_remove = True
 
@@ -72,7 +75,11 @@ def apply_cure(issues: list[Issue], project_root: Path) -> dict[str, int]:
         if file_path.is_file():
             count, _ = cure_file(file_path)
             if count > 0:
-                rel = str(file_path.relative_to(project_root) if file_path.is_relative_to(project_root) else file_path)
+                rel = str(
+                    file_path.relative_to(project_root)
+                    if file_path.is_relative_to(project_root)
+                    else file_path
+                )
                 cured_files[rel] = count
 
     return cured_files

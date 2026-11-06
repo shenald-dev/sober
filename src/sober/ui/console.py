@@ -86,12 +86,22 @@ def render_report(report: SoberAuditReport):
     score_panel_content.append(f"{report.score}% ", style=f"bold {report.color}")
     score_panel_content.append(f"[{report.grade}]\n", style=f"bold {report.color}")
     score_panel_content.append(f"State: {report.status_label}\n\n", style=f"bold {report.color}")
-    score_panel_content.append(f"• Critical Issues: {report.critical_count}    ", style="bold red" if report.critical_count else "dim")
-    score_panel_content.append(f"• High: {report.high_count}    ", style="yellow" if report.high_count else "dim")
+    score_panel_content.append(
+        f"• Critical Issues: {report.critical_count}    ",
+        style="bold red" if report.critical_count else "dim",
+    )
+    score_panel_content.append(
+        f"• High: {report.high_count}    ", style="yellow" if report.high_count else "dim"
+    )
     score_panel_content.append(f"• Medium: {report.medium_count}    ", style="dim")
     score_panel_content.append(f"• Low (Debris): {report.low_count}\n", style="dim")
-    score_panel_content.append(f"• Auto-Fixable with --cure: {report.auto_fixable_count}\n\n", style="bold green" if report.auto_fixable_count else "dim")
-    score_panel_content.append(f"Scanned {report.files_scanned} files in {report.duration_seconds:.2f}s.", style="dim")
+    score_panel_content.append(
+        f"• Auto-Fixable with --cure: {report.auto_fixable_count}\n\n",
+        style="bold green" if report.auto_fixable_count else "dim",
+    )
+    score_panel_content.append(
+        f"Scanned {report.files_scanned} files in {report.duration_seconds:.2f}s.", style="dim"
+    )
 
     console.print(
         Panel(
@@ -120,7 +130,9 @@ def render_cure_results(cured_files: dict):
 
     console.print()
     console.print(table)
-    console.print(f"\n[bold green]✔ Successfully sanitized {total_removed} leftover debug statement(s) and AI chatter.[/]\n")
+    console.print(
+        f"\n[bold green]✔ Successfully sanitized {total_removed} leftover debug statement(s) and AI chatter.[/]\n"
+    )
 
 
 def render_hook_status(is_installed: bool, hook_path: str = ""):

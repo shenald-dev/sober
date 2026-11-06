@@ -7,23 +7,92 @@ supply-chain attacks targeting AI hallucinations.
 
 # Top popular Python packages frequently targeted by slopsquatting
 POPULAR_PYTHON_PACKAGES: set[str] = {
-    "requests", "numpy", "pandas", "urllib3", "setuptools", "wheel",
-    "pip", "typing-extensions", "pydantic", "fastapi", "flask", "boto3",
-    "botocore", "certifi", "idna", "charset-normalizer", "six", "pyyaml",
-    "pytest", "click", "attrs", "jinja2", "cryptography", "python-dateutil",
-    "s3transfer", "packaging", "markupsafe", "aiohttp", "sqlalchemy", "pytz",
-    "scipy", "scikit-learn", "torch", "tensorflow", "httpx", "rich", "typer",
-    "colorama", "tqdm", "matplotlib", "protobuf", "psutil", "dotenv",
-    "python-dotenv", "celery", "redis", "pillow", "pymongo", "beautifulsoup4",
+    "requests",
+    "numpy",
+    "pandas",
+    "urllib3",
+    "setuptools",
+    "wheel",
+    "pip",
+    "typing-extensions",
+    "pydantic",
+    "fastapi",
+    "flask",
+    "boto3",
+    "botocore",
+    "certifi",
+    "idna",
+    "charset-normalizer",
+    "six",
+    "pyyaml",
+    "pytest",
+    "click",
+    "attrs",
+    "jinja2",
+    "cryptography",
+    "python-dateutil",
+    "s3transfer",
+    "packaging",
+    "markupsafe",
+    "aiohttp",
+    "sqlalchemy",
+    "pytz",
+    "scipy",
+    "scikit-learn",
+    "torch",
+    "tensorflow",
+    "httpx",
+    "rich",
+    "typer",
+    "colorama",
+    "tqdm",
+    "matplotlib",
+    "protobuf",
+    "psutil",
+    "dotenv",
+    "python-dotenv",
+    "celery",
+    "redis",
+    "pillow",
+    "pymongo",
+    "beautifulsoup4",
 }
 
 # Top popular npm packages frequently targeted by slopsquatting
 POPULAR_NPM_PACKAGES: set[str] = {
-    "react", "react-dom", "axios", "lodash", "express", "tslib", "chalk",
-    "commander", "typescript", "vue", "next", "webpack", "vite", "moment",
-    "dayjs", "zod", "prettier", "eslint", "dotenv", "glob", "fs-extra",
-    "cors", "uuid", "debug", "rxjs", "inquirer", "semver", "rimraf",
-    "body-parser", "jsonwebtoken", "bcrypt", "mongoose", "tailwindcss",
+    "react",
+    "react-dom",
+    "axios",
+    "lodash",
+    "express",
+    "tslib",
+    "chalk",
+    "commander",
+    "typescript",
+    "vue",
+    "next",
+    "webpack",
+    "vite",
+    "moment",
+    "dayjs",
+    "zod",
+    "prettier",
+    "eslint",
+    "dotenv",
+    "glob",
+    "fs-extra",
+    "cors",
+    "uuid",
+    "debug",
+    "rxjs",
+    "inquirer",
+    "semver",
+    "rimraf",
+    "body-parser",
+    "jsonwebtoken",
+    "bcrypt",
+    "mongoose",
+    "tailwindcss",
 }
 
 
@@ -41,9 +110,9 @@ def damerau_levenshtein_distance(s1: str, s2: str) -> int:
         for j in range(1, len2 + 1):
             cost = 0 if s1[i - 1] == s2[j - 1] else 1
             d[i][j] = min(
-                d[i - 1][j] + 1,       # deletion
-                d[i][j - 1] + 1,       # insertion
-                d[i - 1][j - 1] + cost  # substitution
+                d[i - 1][j] + 1,  # deletion
+                d[i][j - 1] + 1,  # insertion
+                d[i - 1][j - 1] + cost,  # substitution
             )
             # Transposition check
             if i > 1 and j > 1 and s1[i - 1] == s2[j - 2] and s1[i - 2] == s2[j - 1]:
@@ -52,7 +121,9 @@ def damerau_levenshtein_distance(s1: str, s2: str) -> int:
     return d[len1][len2]
 
 
-def find_slopsquatted_target(package_name: str, ecosystem: str = "python") -> tuple[str | None, int]:
+def find_slopsquatted_target(
+    package_name: str, ecosystem: str = "python"
+) -> tuple[str | None, int]:
     """
     Check if a package name is suspiciously close (distance 1 or 2) to a popular package,
     indicating a typosquatted or slopsquatted dependency hallucinated by an AI.

@@ -62,8 +62,6 @@ def is_git_repo(root: Path) -> bool:
 
 def get_git_modified_files(root: Path) -> list[FileToAudit]:
     """Retrieve modified, staged, and untracked files from git status and diff."""
-    from sober.core.git_helper import _parse_diff_path
-
     if not is_git_repo(root):
         return []
 
@@ -109,9 +107,9 @@ def get_git_modified_files(root: Path) -> list[FileToAudit]:
         if diff_res.returncode == 0:
             current_file: Path | None = None
             for line in diff_res.stdout.splitlines():
-                if line.startswith("+++ "):
-                    rel = _parse_diff_path(line)
-                    current_file = (root / rel) if rel else None
+                if line.startswith("+++ b/"):
+                    rel = line[6:]
+                    current_file = root / rel
                 elif line.startswith("@@ ") and current_file in files_map:
                     try:
                         hunk_header = line.split("@@")[1].strip()

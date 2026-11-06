@@ -22,16 +22,18 @@ def extract_function_signatures(code: str, ext: str) -> list[tuple[str, int]]:
                     functions.append((node.name, node.lineno))
         except (SyntaxError, ValueError):
             for idx, line in enumerate(code.splitlines(), start=1):
-                m = re.match(r'^\s*def\s+([A-Za-z0-9_]+)\s*\(', line)
+                m = re.match(r"^\s*def\s+([A-Za-z0-9_]+)\s*\(", line)
                 if m:
                     functions.append((m.group(1), idx))
     elif ext in {".js", ".jsx", ".ts", ".tsx"}:
         for idx, line in enumerate(code.splitlines(), start=1):
             # function foo(...) or const foo = (...) => ...
-            m_fn = re.match(r'^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\s*\(', line)
+            m_fn = re.match(r"^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\s*\(", line)
             if m_fn:
                 functions.append((m_fn.group(1), idx))
-            m_const = re.match(r'^\s*(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>', line)
+            m_const = re.match(
+                r"^\s*(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>", line
+            )
             if m_const:
                 functions.append((m_const.group(1), idx))
     return functions
@@ -45,9 +47,27 @@ def audit_duplicates(files: list[FileToAudit], project_root: Path) -> list[Issue
 
     # Common generic lifecycle/test names to ignore
     IGNORED_NAMES = {
-        "__init__", "setUp", "tearDown", "test_", "main", "render",
-        "toString", "toJSON", "handler", "validate", "get", "post", "put", "delete",
-        "to_dict", "dict", "parse", "format", "load", "save", "run"
+        "__init__",
+        "setUp",
+        "tearDown",
+        "test_",
+        "main",
+        "render",
+        "toString",
+        "toJSON",
+        "handler",
+        "validate",
+        "get",
+        "post",
+        "put",
+        "delete",
+        "to_dict",
+        "dict",
+        "parse",
+        "format",
+        "load",
+        "save",
+        "run",
     }
 
     for file_audit in files:
@@ -55,7 +75,11 @@ def audit_duplicates(files: list[FileToAudit], project_root: Path) -> list[Issue
         code = file_audit.read_text()
         if not code:
             continue
-        file_rel = str(file_audit.path.relative_to(project_root) if file_audit.path.is_relative_to(project_root) else file_audit.path)
+        file_rel = str(
+            file_audit.path.relative_to(project_root)
+            if file_audit.path.is_relative_to(project_root)
+            else file_audit.path
+        )
         sigs = extract_function_signatures(code, ext)
 
         for fn_name, line_num in sigs:
@@ -80,7 +104,9 @@ def audit_duplicates(files: list[FileToAudit], project_root: Path) -> list[Issue
                             severity=Severity.MEDIUM,
                             file_path=file_rel,
                             line_number=line_num,
-                            code_snippet=f"def {fn_name}(...)" if file_rel.endswith(".py") else f"function {fn_name}(...)",
+                            code_snippet=f"def {fn_name}(...)"
+                            if file_rel.endswith(".py")
+                            else f"function {fn_name}(...)",
                             fix_suggestion=f"Import and reuse '{fn_name}' from '{first_file}' instead of re-declaring.",
                         )
                     )

@@ -44,14 +44,18 @@ app = typer.Typer(
     no_args_is_help=False,
 )
 
-hook_app = typer.Typer(help="Manage Git pre-commit hooks for automated sobriety checks.", add_completion=False)
+hook_app = typer.Typer(
+    help="Manage Git pre-commit hooks for automated sobriety checks.", add_completion=False
+)
 app.add_typer(hook_app, name="hook")
 
-ci_app = typer.Typer(help="Manage CI/CD workflows and automated GitHub Actions gates.", add_completion=False)
+ci_app = typer.Typer(
+    help="Manage CI/CD workflows and automated GitHub Actions gates.", add_completion=False
+)
 app.add_typer(ci_app, name="ci")
 
 
-def version_callback(value: bool):
+def _version_callback(value: bool):
     if value:
         console.print(f"[bold cyan]sober[/] version [bold green]{__version__}[/]")
         raise typer.Exit()
@@ -61,7 +65,12 @@ def version_callback(value: bool):
 def _main_callback(
     ctx: typer.Context,
     _version: bool | None = typer.Option(
-        None, "--version", "-v", help="Show version and exit.", callback=version_callback, is_eager=True
+        None,
+        "--version",
+        "-v",
+        help="Show version and exit.",
+        callback=_version_callback,
+        is_eager=True,
     ),
 ):
     if ctx.invoked_subcommand is None:
@@ -103,20 +112,26 @@ def _execute_audit(
         elif markdown_output:
             print(empty_report.to_markdown())
         else:
-            console.print("[bold yellow]No supported source files (.py, .ts, .tsx, .js, .jsx) found to audit.[/]")
+            console.print(
+                "[bold yellow]No supported source files (.py, .ts, .tsx, .js, .jsx) found to audit.[/]"
+            )
         return empty_report
 
     # Run detectors
     all_issues = []
     for f in files:
         if config.is_detector_enabled("hallucinations"):
-            all_issues.extend(audit_hallucinations(f, path, manifest_inspector=manifest, config=config))
+            all_issues.extend(
+                audit_hallucinations(f, path, manifest_inspector=manifest, config=config)
+            )
         if config.is_detector_enabled("antipatterns"):
             all_issues.extend(audit_antipatterns(f, path))
         if config.is_detector_enabled("ghost_code"):
             all_issues.extend(audit_ghost_code(f, path))
         if config.is_detector_enabled("security"):
-            all_issues.extend(audit_security(f, path, custom_secret_patterns=config.custom_secret_patterns))
+            all_issues.extend(
+                audit_security(f, path, custom_secret_patterns=config.custom_secret_patterns)
+            )
         if config.is_detector_enabled("chatter"):
             all_issues.extend(audit_chatter(f, path))
 
@@ -163,7 +178,7 @@ def _execute_audit(
 
 
 @app.command(name="scan")
-def scan(
+def _scan(
     path: Path = typer.Argument(
         Path("."),
         help="Target repository or folder path to audit (defaults to current directory).",
@@ -226,7 +241,9 @@ def scan(
     if not all_files:
         files = get_git_modified_files(path)
         if not files and not (json_output or sarif_output or markdown_output):
-            console.print("[dim]No uncommitted git changes detected. Auditing all repository files...[/]\n")
+            console.print(
+                "[dim]No uncommitted git changes detected. Auditing all repository files...[/]\n"
+            )
             files = get_all_code_files(path)
     else:
         files = get_all_code_files(path)
@@ -260,10 +277,18 @@ def _diff_command(
         dir_okay=True,
         resolve_path=True,
     ),
-    cure: bool = typer.Option(False, "--cure", "-c", help="Auto-sanitize detected debug statements."),
-    strict: bool = typer.Option(False, "--strict", "-s", help="Fail if sobriety threshold not met."),
-    min_score: float | None = typer.Option(None, "--min-score", help="Override minimum score threshold."),
-    offline: bool = typer.Option(False, "--offline", help="Perform offline manifest audit without external network calls."),
+    cure: bool = typer.Option(
+        False, "--cure", "-c", help="Auto-sanitize detected debug statements."
+    ),
+    strict: bool = typer.Option(
+        False, "--strict", "-s", help="Fail if sobriety threshold not met."
+    ),
+    min_score: float | None = typer.Option(
+        None, "--min-score", help="Override minimum score threshold."
+    ),
+    offline: bool = typer.Option(
+        False, "--offline", help="Perform offline manifest audit without external network calls."
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output raw JSON."),
     sarif_output: bool = typer.Option(False, "--sarif", help="Output SARIF 2.1.0."),
     markdown_output: bool = typer.Option(False, "--markdown", "-m", help="Output Markdown report."),
@@ -298,11 +323,15 @@ def _watch_command(
         resolve_path=True,
     ),
     interval: float = typer.Option(0.5, "--interval", "-i", help="Polling interval in seconds."),
-    cure: bool = typer.Option(False, "--cure", "-c", help="Auto-cure detected debug statements and chatter on save."),
+    cure: bool = typer.Option(
+        False, "--cure", "-c", help="Auto-cure detected debug statements and chatter on save."
+    ),
 ):
     """Live continuous watcher daemon for real-time AI vibe-coding feedback."""
     print_banner()
-    console.print(f"[bold cyan]👀 SOBER Live Watcher active on {path.resolve()}[/] [dim](Ctrl+C to exit)[/]\n")
+    console.print(
+        f"[bold cyan]👀 SOBER Live Watcher active on {path.resolve()}[/] [dim](Ctrl+C to exit)[/]\n"
+    )
 
     def _on_change():
         console.clear()
@@ -330,7 +359,9 @@ def _explain_command(
         dir_okay=True,
         resolve_path=True,
     ),
-    all_files: bool = typer.Option(False, "--all", "-a", help="Audit all files instead of only uncommitted changes."),
+    all_files: bool = typer.Option(
+        False, "--all", "-a", help="Audit all files instead of only uncommitted changes."
+    ),
 ):
     """Generate high-density prompt context for autonomous coding agents (Claude, Cursor, Aider) to self-heal."""
     files = get_all_code_files(path) if all_files else get_git_modified_files(path)
@@ -343,13 +374,17 @@ def _explain_command(
     all_issues = []
     for f in files:
         if config.is_detector_enabled("hallucinations"):
-            all_issues.extend(audit_hallucinations(f, path, manifest_inspector=manifest, config=config))
+            all_issues.extend(
+                audit_hallucinations(f, path, manifest_inspector=manifest, config=config)
+            )
         if config.is_detector_enabled("antipatterns"):
             all_issues.extend(audit_antipatterns(f, path))
         if config.is_detector_enabled("ghost_code"):
             all_issues.extend(audit_ghost_code(f, path))
         if config.is_detector_enabled("security"):
-            all_issues.extend(audit_security(f, path, custom_secret_patterns=config.custom_secret_patterns))
+            all_issues.extend(
+                audit_security(f, path, custom_secret_patterns=config.custom_secret_patterns)
+            )
         if config.is_detector_enabled("chatter"):
             all_issues.extend(audit_chatter(f, path))
 
@@ -377,7 +412,9 @@ def _cure_command(
         dir_okay=True,
         resolve_path=True,
     ),
-    all_files: bool = typer.Option(False, "--all", "-a", help="Cure all files instead of only uncommitted changes."),
+    all_files: bool = typer.Option(
+        False, "--all", "-a", help="Cure all files instead of only uncommitted changes."
+    ),
 ):
     """Standalone sanitization tool: auto-strip leftover debug statements, debuggers, and AI chatter."""
     print_banner()

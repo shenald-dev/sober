@@ -13,25 +13,25 @@ from sober.detectors import Issue, Severity
 
 # Regex patterns for Python and JS/TS HTTP calls lacking timeouts
 JS_FETCH_CALL_REGEX = re.compile(
-    r'\bfetch\s*\(\s*[^,\)]+\s*\)',
+    r"\bfetch\s*\(\s*[^,\)]+\s*\)",
     re.IGNORECASE,
 )
 
 # Regex for insecure randomness in security contexts
 INSECURE_RANDOM_REGEX = re.compile(
-    r'(?:token|secret|key|password|nonce|session_id|auth_code)\s*=\s*.*(?:random\.(?:random|randint|choice|choices)|Math\.random\s*\(\s*\))',
+    r"(?:token|secret|key|password|nonce|session_id|auth_code)\s*=\s*.*(?:random\.(?:random|randint|choice|choices)|Math\.random\s*\(\s*\))",
     re.IGNORECASE,
 )
 
 # Regex for direct prompt injection in LLM messages
 PROMPT_INJECTION_REGEX = re.compile(
-    r'''(?:messages\s*=\s*\[.*["']content["']\s*:\s*f["'][^"']*(?:\{[a-zA-Z0-9_]+\})|prompt\s*=\s*f["'][^"']*\{[a-zA-Z0-9_]+\})''',
+    r"""(?:messages\s*=\s*\[.*["']content["']\s*:\s*f["'][^"']*(?:\{[a-zA-Z0-9_]+\})|prompt\s*=\s*f["'][^"']*\{[a-zA-Z0-9_]+\})""",
     re.DOTALL | re.IGNORECASE,
 )
 
 # Regex for client-side leaked system instructions
 LEAKED_SYSTEM_PROMPT_REGEX = re.compile(
-    r'''(?:system_prompt|instructions|systemPrompt)\s*:\s*["'](?:You are a (?:confidential|secret|proprietary|internal)|Do not reveal|Never disclose)[^"']*["']''',
+    r"""(?:system_prompt|instructions|systemPrompt)\s*:\s*["'](?:You are a (?:confidential|secret|proprietary|internal)|Do not reveal|Never disclose)[^"']*["']""",
     re.IGNORECASE,
 )
 
@@ -50,7 +50,12 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
             func_name = ""
             if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
                 if node.func.value.id in {"requests", "httpx"} and node.func.attr in {
-                    "get", "post", "put", "patch", "delete", "request"
+                    "get",
+                    "post",
+                    "put",
+                    "patch",
+                    "delete",
+                    "request",
                 }:
                     func_name = f"{node.func.value.id}.{node.func.attr}"
 
@@ -82,7 +87,17 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     name_lower = target.id.lower()
-                    if any(term in name_lower for term in ["token", "secret", "password", "nonce", "session_id", "api_key"]):
+                    if any(
+                        term in name_lower
+                        for term in [
+                            "token",
+                            "secret",
+                            "password",
+                            "nonce",
+                            "session_id",
+                            "api_key",
+                        ]
+                    ):
                         is_security_var = True
                         break
 
@@ -93,7 +108,13 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                     uses_insecure_random = False
                     for child in ast.walk(node.value):
                         if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name):
-                            if child.value.id == "random" and child.attr in {"random", "randint", "choice", "choices", "sample"}:
+                            if child.value.id == "random" and child.attr in {
+                                "random",
+                                "randint",
+                                "choice",
+                                "choices",
+                                "sample",
+                            }:
                                 uses_insecure_random = True
                                 break
 

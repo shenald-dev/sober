@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+- **[Pruned]:** Added _ prefix to Typer commands in cli.py and removed unused PY_HTTP_CALL_REGEX in antipatterns.py to fix Vulture dead code false positives.
+
 - **[Fixed]:** Added robust logging to graceful exception fallbacks to prevent silent failures.
-- **[Pruned]:** Removed unused `PY_HTTP_CALL_REGEX` variable from `sober.detectors.antipatterns` and renamed Typer CLI functions for strict dead code elimination.
 
 ## [2.0.0] - 2026-11-03
 
@@ -84,7 +85,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sober Score**: Computes 0–100% sobriety telemetry with health status indicators.
 - **Auto-Cure (`--cure`)**: Automatically cleans leftover debug logs and breakpoints.
 - **Strict Pre-Commit & CI Mode (`--strict`)**: Seamless integration with Git hooks and GitHub Actions.
-
-## [Unreleased]
-**[Fixed]:** Repaired Git diff parsing mechanisms in `sober.core.scanner` and `sober.core.git_helper` to correctly parse and handle modifications on paths with spaces or quotation marks.
-**[Fixed]:** Addressed a bug preventing proper installation of pre-commit hooks in Git worktrees by resolving relative `gitdir:` paths correctly against the worktree root.

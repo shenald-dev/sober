@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from sober.core.scanner import FileToAudit
 from sober.detectors import Severity
 from sober.detectors.hallucinations import audit_hallucinations

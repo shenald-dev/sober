@@ -30,7 +30,9 @@ class SoberConfig:
         normalized = rel_path.replace("\\", "/")
         for pattern in self.ignore_paths:
             norm_pattern = pattern.replace("\\", "/")
-            if fnmatch.fnmatch(normalized, norm_pattern) or fnmatch.fnmatch(Path(normalized).name, norm_pattern):
+            if fnmatch.fnmatch(normalized, norm_pattern) or fnmatch.fnmatch(
+                Path(normalized).name, norm_pattern
+            ):
                 return True
         return False
 

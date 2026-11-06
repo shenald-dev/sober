@@ -75,7 +75,12 @@ class ManifestInspector:
         if pkg_json.is_file():
             try:
                 data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
-                for dep_type in ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]:
+                for dep_type in [
+                    "dependencies",
+                    "devDependencies",
+                    "peerDependencies",
+                    "optionalDependencies",
+                ]:
                     for pkg in data.get(dep_type, {}):
                         self._js_packages.add(pkg)
             except (OSError, json.JSONDecodeError):
