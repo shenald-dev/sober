@@ -11,6 +11,8 @@ import threading
 import time
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 # TTL settings: 24 hours for confirmed packages, 1 hour for confirmed 404s
 CONFIRMED_TTL_SECONDS = 86400
 NOT_FOUND_TTL_SECONDS = 3600
@@ -42,11 +44,12 @@ class RegistryCache:
                     now = time.time()
                     # Filter out expired entries
                     self._cache = {
-                        k: v for k, v in data.items()
+                        k: v
+                        for k, v in data.items()
                         if isinstance(v, dict) and v.get("expires_at", 0) > now
                     }
                 except Exception:
-                    logging.debug(f"Failed to load cache from {self.cache_file}", exc_info=True)
+                    logger.debug(f"Failed to load cache from {self.cache_file}", exc_info=True)
                     self._cache = {}
 
     def save(self):
