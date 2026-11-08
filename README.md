@@ -14,6 +14,7 @@
 
 <br/><br/>
 
+[![PyPI version](https://img.shields.io/pypi/v/sober-audit.svg?color=ff007f&style=for-the-badge)](https://pypi.org/project/sober-audit/)
 [![Release](https://img.shields.io/github/v/release/shenald-dev/sober?color=ff007f&style=for-the-badge&logo=github)](https://github.com/shenald-dev/sober/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-00d4ff.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00e676.svg?style=for-the-badge)](LICENSE)
@@ -85,24 +86,18 @@ Standard `git diff` was built for humans reviewing 5-line edits—not humans aud
 
 ### Installation
 
-Install directly via pip from GitHub:
+Install directly via `pip`:
 
 ```bash
-pip install "git+https://github.com/shenald-dev/sober.git"
-```
-
-Or install the pre-built wheel directly from the [latest GitHub Release](https://github.com/shenald-dev/sober/releases/latest):
-
-```bash
-pip install https://github.com/shenald-dev/sober/releases/download/v2.0.0/sober-2.0.0-py3-none-any.whl
+pip install sober-audit
 ```
 
 Or run directly with `pipx` or `uv`:
 
 ```bash
-pipx install "git+https://github.com/shenald-dev/sober.git"
+pipx install sober-audit
 # or
-uv tool install "git+https://github.com/shenald-dev/sober.git"
+uv tool install sober-audit
 ```
 
 ---

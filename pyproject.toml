@@ -1,9 +1,12 @@
 [project]
-name = "sober"
+name = "sober-audit"
 version = "2.0.0"
 description = "🍸 The Vibe Coding Hangover Cure. Audit, sanitize, and proofread AI-generated code before pushing to production."
 readme = "README.md"
 authors = [
+    { name = "Shenal Diluksha", email = "shenald@users.noreply.github.com" }
+]
+maintainers = [
     { name = "shenald-dev", email = "shenald@users.noreply.github.com" }
 ]
 license = { text = "MIT" }
@@ -36,6 +39,13 @@ dev = [
 
 [project.scripts]
 sober = "sober.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/shenald-dev/sober"
+Documentation = "https://github.com/shenald-dev/sober#readme"
+Repository = "https://github.com/shenald-dev/sober"
+Issues = "https://github.com/shenald-dev/sober/issues"
+Changelog = "https://github.com/shenald-dev/sober/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["setuptools>=61.0"]
