@@ -10,6 +10,8 @@ from pathlib import Path
 
 from sober.core.scanner import SUPPORTED_EXTENSIONS, FileToAudit, is_git_repo
 
+logger = logging.getLogger(__name__)
+
 HOOK_SCRIPT = """#!/usr/bin/env sh
 # Installed by sober - The Vibe Coding Hangover Cure
 # https://github.com/shenald-dev/sober
@@ -36,7 +38,7 @@ def _parse_diff_path(line: str) -> str | None:
         path_str = path_str.split("\t", 1)[0]
 
     if path_str.startswith('"') and path_str.endswith('"'):
-        path_str = path_str[1:-1].replace('\\"', '"').replace('\\\\', '\\')
+        path_str = path_str[1:-1].replace('\\"', '"').replace("\\\\", "\\")
 
     if path_str.startswith("b/"):
         return path_str[2:]
@@ -119,7 +121,7 @@ def get_git_hooks_dir(root: Path) -> Path | None:
                 hooks_dir.mkdir(parents=True, exist_ok=True)
                 return hooks_dir
         except Exception:
-            logging.debug("Failed to read gitdir for worktree hooks resolution", exc_info=True)
+            logger.debug("Failed to read gitdir for worktree hooks resolution", exc_info=True)
             return None
     return None
 
@@ -169,6 +171,6 @@ def get_git_hook_status(root: Path) -> bool:
             content = hook_file.read_text(encoding="utf-8", errors="replace")
             return "sober" in content
         except Exception:
-            logging.debug(f"Failed to read hook file {hook_file}", exc_info=True)
+            logger.debug(f"Failed to read hook file {hook_file}", exc_info=True)
             return False
     return False

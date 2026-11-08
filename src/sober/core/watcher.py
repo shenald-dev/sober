@@ -10,6 +10,8 @@ from pathlib import Path
 
 from sober.core.scanner import get_all_code_files
 
+logger = logging.getLogger(__name__)
+
 
 class LiveSoberWatcher:
     """Monitors repository source files and triggers audit callbacks upon modifications."""
@@ -26,7 +28,7 @@ class LiveSoberWatcher:
             try:
                 mtimes[str(f.path)] = f.path.stat().st_mtime
             except OSError:
-                logging.debug(f"Failed to stat {f.path}", exc_info=True)
+                logger.debug(f"Failed to stat {f.path}", exc_info=True)
         return mtimes
 
     def watch(
