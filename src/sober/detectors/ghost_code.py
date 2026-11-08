@@ -11,25 +11,52 @@ from pathlib import Path
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
+logger = logging.getLogger(__name__)
+
 # Regex patterns for debug debris
-DEBUG_PRINT_PY = re.compile(r'^\s*print\s*\(\s*(f?["\'](DEBUG|TODO|HERE|test|\d{3,})|["\']-{3,}|1111+)', re.IGNORECASE)
-DEBUG_LOG_JS = re.compile(r'^\s*console\.(log|debug|warn)\s*\(\s*(["\'](DEBUG|HERE|test|\d{3,})|1111+)', re.IGNORECASE)
-DEBUGGER_JS = re.compile(r'^\s*debugger\s*;?', re.IGNORECASE)
-MARKDOWN_FENCE = re.compile(r'^\s*```(?:[a-zA-Z0-9_-]+)?\s*$', re.IGNORECASE)
+DEBUG_PRINT_PY = re.compile(
+    r'^\s*print\s*\(\s*(f?["\'](DEBUG|TODO|HERE|test|\d{3,})|["\']-{3,}|1111+)', re.IGNORECASE
+)
+DEBUG_LOG_JS = re.compile(
+    r'^\s*console\.(log|debug|warn)\s*\(\s*(["\'](DEBUG|HERE|test|\d{3,})|1111+)', re.IGNORECASE
+)
+DEBUGGER_JS = re.compile(r"^\s*debugger\s*;?", re.IGNORECASE)
+MARKDOWN_FENCE = re.compile(r"^\s*```(?:[a-zA-Z0-9_-]+)?\s*$", re.IGNORECASE)
 
 # Silent error swallow patterns
-SILENT_EXCEPT_LINE_PY = re.compile(r'^\s*except(\s+[A-Za-z0-9_]+)?\s*:\s*pass\s*(#.*)?$')
-SILENT_CATCH_JS = re.compile(r'catch\s*\([^)]*\)\s*\{\s*\}')
-SILENT_PROMISE_CATCH_JS = re.compile(r'\.catch\s*\(\s*(?:\(\s*\)\s*=>\s*\{\s*\}|\([^)]*\)\s*=>\s*\{\s*\})\s*\)')
+SILENT_EXCEPT_LINE_PY = re.compile(r"^\s*except(\s+[A-Za-z0-9_]+)?\s*:\s*pass\s*(#.*)?$")
+SILENT_CATCH_JS = re.compile(r"catch\s*\([^)]*\)\s*\{\s*\}")
+SILENT_PROMISE_CATCH_JS = re.compile(
+    r"\.catch\s*\(\s*(?:\(\s*\)\s*=>\s*\{\s*\}|\([^)]*\)\s*=>\s*\{\s*\})\s*\)"
+)
 
 # Incomplete AI stubs
 STUB_PATTERNS = [
-    (re.compile(r'raise\s+NotImplementedError(\(.*\))?', re.IGNORECASE), "NotImplementedError placeholder left in production path"),
-    (re.compile(r'throw\s+new\s+Error\s*\(\s*["\']Not implemented["\']\s*\)', re.IGNORECASE), "Unimplemented Error stub"),
-    (re.compile(r'#\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)', re.IGNORECASE), "Unresolved AI implementation TODO"),
-    (re.compile(r'//\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)', re.IGNORECASE), "Unresolved AI implementation TODO"),
-    (re.compile(r'return\s*\{\s*["\']mock["\']\s*:\s*(?:True|true)\s*\}', re.IGNORECASE), "Hardcoded mock return artifact"),
-    (re.compile(r'^\s*pass\s*#\s*TODO', re.IGNORECASE), "Unfinished placeholder pass statement"),
+    (
+        re.compile(r"raise\s+NotImplementedError(\(.*\))?", re.IGNORECASE),
+        "NotImplementedError placeholder left in production path",
+    ),
+    (
+        re.compile(r'throw\s+new\s+Error\s*\(\s*["\']Not implemented["\']\s*\)', re.IGNORECASE),
+        "Unimplemented Error stub",
+    ),
+    (
+        re.compile(
+            r"#\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)", re.IGNORECASE
+        ),
+        "Unresolved AI implementation TODO",
+    ),
+    (
+        re.compile(
+            r"//\s*(TODO|FIXME)\s*:\s*(implement|add logic|fill in|ai generated)", re.IGNORECASE
+        ),
+        "Unresolved AI implementation TODO",
+    ),
+    (
+        re.compile(r'return\s*\{\s*["\']mock["\']\s*:\s*(?:True|true)\s*\}', re.IGNORECASE),
+        "Hardcoded mock return artifact",
+    ),
+    (re.compile(r"^\s*pass\s*#\s*TODO", re.IGNORECASE), "Unfinished placeholder pass statement"),
 ]
 
 
@@ -41,7 +68,11 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
         return issues
 
     ext = file_audit.extension
-    file_rel = str(file_audit.path.relative_to(project_root) if file_audit.path.is_relative_to(project_root) else file_audit.path)
+    file_rel = str(
+        file_audit.path.relative_to(project_root)
+        if file_audit.path.is_relative_to(project_root)
+        else file_audit.path
+    )
     lines = code.splitlines()
 
     # 1. Python AST-based checks for silent except blocks
@@ -49,25 +80,30 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
-                if isinstance(node, ast.ExceptHandler):
-                    # Check if handler body only has `pass`
-                    if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
-                        lineno = node.lineno
-                        if not file_audit.diff_lines or lineno in file_audit.diff_lines:
-                            issues.append(
-                                Issue(
-                                    category="Silent Error Swallow",
-                                    title="Blank 'except: pass' block",
-                                    description="AI swallowed exceptions with a blank pass, concealing critical failures in production.",
-                                    severity=Severity.HIGH,
-                                    file_path=file_rel,
-                                    line_number=lineno,
-                                    code_snippet="except: pass",
-                                    fix_suggestion="Log exception or handle specific error type gracefully.",
-                                )
+                if (
+                    isinstance(node, ast.ExceptHandler)
+                    and len(node.body) == 1
+                    and isinstance(node.body[0], ast.Pass)
+                ):
+                    lineno = node.lineno
+                    if not file_audit.diff_lines or lineno in file_audit.diff_lines:
+                        issues.append(
+                            Issue(
+                                category="Silent Error Swallow",
+                                title="Blank 'except: pass' block",
+                                description="AI swallowed exceptions with a blank pass, concealing critical failures in production.",
+                                severity=Severity.HIGH,
+                                file_path=file_rel,
+                                line_number=lineno,
+                                code_snippet="except: pass",
+                                fix_suggestion="Log exception or handle specific error type gracefully.",
                             )
+                        )
         except (SyntaxError, ValueError):
-            logging.debug(f"Failed to parse python file for ghost code check: {file_audit.path}", exc_info=True)
+            logger.debug(
+                f"Failed to parse python file for ghost code check: {file_audit.path}",
+                exc_info=True,
+            )
 
     # 2. Line-by-line checks
     for idx, line in enumerate(lines, start=1):
@@ -103,7 +139,7 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                     file_path=file_rel,
                     line_number=idx,
                     code_snippet=stripped,
-                    fix_suggestion="Remove or replace with structured logging (logging.debug).",
+                    fix_suggestion="Remove or replace with structured logging (logger.debug).",
                     auto_fixable=True,
                 )
             )
@@ -139,20 +175,25 @@ def audit_ghost_code(file_audit: FileToAudit, project_root: Path) -> list[Issue]
                 )
 
         # Silent Error Swallows for single-line python or JS
-        if ext == ".py" and SILENT_EXCEPT_LINE_PY.match(stripped):
-            if not any(i.line_number == idx and i.category == "Silent Error Swallow" for i in issues):
-                issues.append(
-                    Issue(
-                        category="Silent Error Swallow",
-                        title="Blank 'except: pass' block",
-                        description="AI swallowed exceptions without logging, concealing critical failures in production.",
-                        severity=Severity.HIGH,
-                        file_path=file_rel,
-                        line_number=idx,
-                        code_snippet=stripped,
-                        fix_suggestion="Log exception or handle specific error type gracefully.",
-                    )
+        if (
+            ext == ".py"
+            and SILENT_EXCEPT_LINE_PY.match(stripped)
+            and not any(
+                i.line_number == idx and i.category == "Silent Error Swallow" for i in issues
+            )
+        ):
+            issues.append(
+                Issue(
+                    category="Silent Error Swallow",
+                    title="Blank 'except: pass' block",
+                    description="AI swallowed exceptions without logging, concealing critical failures in production.",
+                    severity=Severity.HIGH,
+                    file_path=file_rel,
+                    line_number=idx,
+                    code_snippet=stripped,
+                    fix_suggestion="Log exception or handle specific error type gracefully.",
                 )
+            )
 
         if ext in {".js", ".jsx", ".ts", ".tsx"}:
             if SILENT_CATCH_JS.search(stripped):

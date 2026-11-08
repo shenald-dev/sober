@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -30,7 +32,9 @@ class SoberConfig:
         normalized = rel_path.replace("\\", "/")
         for pattern in self.ignore_paths:
             norm_pattern = pattern.replace("\\", "/")
-            if fnmatch.fnmatch(normalized, norm_pattern) or fnmatch.fnmatch(Path(normalized).name, norm_pattern):
+            if fnmatch.fnmatch(normalized, norm_pattern) or fnmatch.fnmatch(
+                Path(normalized).name, norm_pattern
+            ):
                 return True
         return False
 
@@ -82,7 +86,7 @@ def load_config(root_path: Path) -> SoberConfig:
                     offline_mode=bool(section.get("offline_mode", False)),
                 )
             except Exception:
-                logging.debug(f"Failed to parse config candidate {candidate}", exc_info=True)
+                logger.debug(f"Failed to parse config candidate {candidate}", exc_info=True)
                 # If TOML has errors, skip to next candidate
                 continue
 

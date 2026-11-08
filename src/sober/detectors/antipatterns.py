@@ -13,25 +13,25 @@ from sober.detectors import Issue, Severity
 
 # Regex patterns for Python and JS/TS HTTP calls lacking timeouts
 JS_FETCH_CALL_REGEX = re.compile(
-    r'\bfetch\s*\(\s*[^,\)]+\s*\)',
+    r"\bfetch\s*\(\s*[^,\)]+\s*\)",
     re.IGNORECASE,
 )
 
 # Regex for insecure randomness in security contexts
 INSECURE_RANDOM_REGEX = re.compile(
-    r'(?:token|secret|key|password|nonce|session_id|auth_code)\s*=\s*.*(?:random\.(?:random|randint|choice|choices)|Math\.random\s*\(\s*\))',
+    r"(?:token|secret|key|password|nonce|session_id|auth_code)\s*=\s*.*(?:random\.(?:random|randint|choice|choices)|Math\.random\s*\(\s*\))",
     re.IGNORECASE,
 )
 
 # Regex for direct prompt injection in LLM messages
 PROMPT_INJECTION_REGEX = re.compile(
-    r'''(?:messages\s*=\s*\[.*["']content["']\s*:\s*f["'][^"']*(?:\{[a-zA-Z0-9_]+\})|prompt\s*=\s*f["'][^"']*\{[a-zA-Z0-9_]+\})''',
+    r"""(?:messages\s*=\s*\[.*["']content["']\s*:\s*f["'][^"']*(?:\{[a-zA-Z0-9_]+\})|prompt\s*=\s*f["'][^"']*\{[a-zA-Z0-9_]+\})""",
     re.DOTALL | re.IGNORECASE,
 )
 
 # Regex for client-side leaked system instructions
 LEAKED_SYSTEM_PROMPT_REGEX = re.compile(
-    r'''(?:system_prompt|instructions|systemPrompt)\s*:\s*["'](?:You are a (?:confidential|secret|proprietary|internal)|Do not reveal|Never disclose)[^"']*["']''',
+    r"""(?:system_prompt|instructions|systemPrompt)\s*:\s*["'](?:You are a (?:confidential|secret|proprietary|internal)|Do not reveal|Never disclose)[^"']*["']""",
     re.IGNORECASE,
 )
 
@@ -48,11 +48,13 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
         # 1. Missing HTTP timeout in requests / httpx calls
         if isinstance(node, ast.Call):
             func_name = ""
-            if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-                if node.func.value.id in {"requests", "httpx"} and node.func.attr in {
-                    "get", "post", "put", "patch", "delete", "request"
-                }:
-                    func_name = f"{node.func.value.id}.{node.func.attr}"
+            if (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"requests", "httpx"}
+                and node.func.attr in {"get", "post", "put", "patch", "delete", "request"}
+            ):
+                func_name = f"{node.func.value.id}.{node.func.attr}"
 
             if func_name:
                 lineno = node.lineno
@@ -82,7 +84,17 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     name_lower = target.id.lower()
-                    if any(term in name_lower for term in ["token", "secret", "password", "nonce", "session_id", "api_key"]):
+                    if any(
+                        term in name_lower
+                        for term in [
+                            "token",
+                            "secret",
+                            "password",
+                            "nonce",
+                            "session_id",
+                            "api_key",
+                        ]
+                    ):
                         is_security_var = True
                         break
 
@@ -92,10 +104,14 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                     # Check if value uses random module instead of secrets
                     uses_insecure_random = False
                     for child in ast.walk(node.value):
-                        if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name):
-                            if child.value.id == "random" and child.attr in {"random", "randint", "choice", "choices", "sample"}:
-                                uses_insecure_random = True
-                                break
+                        if (
+                            isinstance(child, ast.Attribute)
+                            and isinstance(child.value, ast.Name)
+                            and child.value.id == "random"
+                            and child.attr in {"random", "randint", "choice", "choices", "sample"}
+                        ):
+                            uses_insecure_random = True
+                            break
 
                     if uses_insecure_random:
                         issues.append(
@@ -162,20 +178,19 @@ def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issu
             )
 
         # Missing timeout in JS/TS bare fetch()
-        if ext in {".js", ".jsx", ".ts", ".tsx"}:
-            if JS_FETCH_CALL_REGEX.search(stripped):
-                issues.append(
-                    Issue(
-                        category="Reliability Antipattern",
-                        title="Omitted Timeout in JavaScript fetch()",
-                        description="AI invoked fetch() without an AbortSignal timeout, risking hanging connections.",
-                        severity=Severity.MEDIUM,
-                        file_path=file_rel,
-                        line_number=idx,
-                        code_snippet=stripped,
-                        fix_suggestion="Add timeout: fetch(url, { signal: AbortSignal.timeout(10000) })",
-                    )
+        if ext in {".js", ".jsx", ".ts", ".tsx"} and JS_FETCH_CALL_REGEX.search(stripped):
+            issues.append(
+                Issue(
+                    category="Reliability Antipattern",
+                    title="Omitted Timeout in JavaScript fetch()",
+                    description="AI invoked fetch() without an AbortSignal timeout, risking hanging connections.",
+                    severity=Severity.MEDIUM,
+                    file_path=file_rel,
+                    line_number=idx,
+                    code_snippet=stripped,
+                    fix_suggestion="Add timeout: fetch(url, { signal: AbortSignal.timeout(10000) })",
                 )
+            )
 
         # Client-side leaked system prompt
         if ext in {".js", ".jsx", ".ts", ".tsx"} and LEAKED_SYSTEM_PROMPT_REGEX.search(stripped):
