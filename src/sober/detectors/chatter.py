@@ -6,6 +6,7 @@ Catches conversational LLM responses accidentally pasted or generated into sourc
 import re
 from pathlib import Path
 
+from sober.core.context import FileContext
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
@@ -19,20 +20,17 @@ CHATTER_PATTERNS = [
 ]
 
 
-def audit_chatter(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
+def audit_chatter(file_audit: FileToAudit, project_root: Path,
+                  ctx: FileContext | None = None) -> list[Issue]:
     """Scan file for AI conversational chatter, prompt leakage, and assistant artifact comments."""
+    ctx = ctx or FileContext(file_audit)
+    if not ctx.content:
+        return []
+    file_rel = ctx.rel_path(project_root)
     issues = []
-    code = file_audit.read_text()
-    if not code:
-        return issues
-
-    file_rel = str(file_audit.path.relative_to(project_root) if file_audit.path.is_relative_to(project_root) else file_audit.path)
-    lines = code.splitlines()
-
-    for idx, line in enumerate(lines, start=1):
-        if file_audit.diff_lines and idx not in file_audit.diff_lines:
+    for idx, line in enumerate(ctx.lines, start=1):
+        if not ctx.in_diff(idx):
             continue
-
         stripped = line.strip()
         for pattern, title in CHATTER_PATTERNS:
             if pattern.search(stripped):
@@ -47,8 +45,8 @@ def audit_chatter(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
                         code_snippet=stripped,
                         fix_suggestion="Remove conversational comment before pushing to production.",
                         auto_fixable=True,
+                        rule_id="SOBER-CHT001",
                     )
                 )
                 break
-
     return issues

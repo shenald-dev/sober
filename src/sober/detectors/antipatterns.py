@@ -8,44 +8,35 @@ import ast
 import re
 from pathlib import Path
 
+from sober.core.context import FileContext
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
-# Regex patterns for Python and JS/TS HTTP calls lacking timeouts
-JS_FETCH_CALL_REGEX = re.compile(
-    r"\bfetch\s*\(\s*[^,\)]+\s*\)",
-    re.IGNORECASE,
-)
+JS_FETCH_CALL_REGEX = re.compile(r"\bfetch\s*\(\s*[^,\)]+\s*\)", re.IGNORECASE)
 
-# Regex for insecure randomness in security contexts
 INSECURE_RANDOM_REGEX = re.compile(
     r"(?:token|secret|key|password|nonce|session_id|auth_code)\s*=\s*.*(?:random\.(?:random|randint|choice|choices)|Math\.random\s*\(\s*\))",
     re.IGNORECASE,
 )
 
-# Regex for direct prompt injection in LLM messages
 PROMPT_INJECTION_REGEX = re.compile(
     r"""(?:messages\s*=\s*\[.*["']content["']\s*:\s*f["'][^"']*(?:\{[a-zA-Z0-9_]+\})|prompt\s*=\s*f["'][^"']*\{[a-zA-Z0-9_]+\})""",
     re.DOTALL | re.IGNORECASE,
 )
 
-# Regex for client-side leaked system instructions
 LEAKED_SYSTEM_PROMPT_REGEX = re.compile(
     r"""(?:system_prompt|instructions|systemPrompt)\s*:\s*["'](?:You are a (?:confidential|secret|proprietary|internal)|Do not reveal|Never disclose)[^"']*["']""",
     re.IGNORECASE,
 )
 
 
-def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int]) -> list[Issue]:
-    """Inspect Python AST for missing timeouts, insecure randomness, and prompt injection."""
+def _check_python_ast_antipatterns(ctx: FileContext, file_rel: str) -> list[Issue]:
+    """Inspect Python AST for missing timeouts and insecure randomness."""
     issues = []
-    try:
-        tree = ast.parse(code)
-    except (SyntaxError, ValueError):
+    tree = ctx.tree
+    if tree is None:
         return issues
-
     for node in ast.walk(tree):
-        # 1. Missing HTTP timeout in requests / httpx calls
         if isinstance(node, ast.Call):
             func_name = ""
             if (
@@ -55,10 +46,9 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                 and node.func.attr in {"get", "post", "put", "patch", "delete", "request"}
             ):
                 func_name = f"{node.func.value.id}.{node.func.attr}"
-
             if func_name:
                 lineno = node.lineno
-                if not diff_lines or lineno in diff_lines:
+                if ctx.in_diff(lineno):
                     has_timeout = any(kw.arg == "timeout" for kw in node.keywords)
                     if not has_timeout:
                         issues.append(
@@ -75,33 +65,20 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                                 code_snippet=f"{func_name}(..., timeout=30.0)",
                                 fix_suggestion="Add explicit timeout: e.g. timeout=30.0 or httpx.Timeout(10.0)",
                                 auto_fixable=True,
+                                rule_id="SOBER-REL001",
                             )
                         )
-
-        # 2. Insecure randomness for security-sensitive tokens
         if isinstance(node, ast.Assign):
             is_security_var = False
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     name_lower = target.id.lower()
-                    if any(
-                        term in name_lower
-                        for term in [
-                            "token",
-                            "secret",
-                            "password",
-                            "nonce",
-                            "session_id",
-                            "api_key",
-                        ]
-                    ):
+                    if any(term in name_lower for term in ["token", "secret", "password", "nonce", "session_id", "api_key"]):
                         is_security_var = True
                         break
-
             if is_security_var:
                 lineno = node.lineno
-                if not diff_lines or lineno in diff_lines:
-                    # Check if value uses random module instead of secrets
+                if ctx.in_diff(lineno):
                     uses_insecure_random = False
                     for child in ast.walk(node.value):
                         if (
@@ -112,7 +89,6 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                         ):
                             uses_insecure_random = True
                             break
-
                     if uses_insecure_random:
                         issues.append(
                             Issue(
@@ -127,42 +103,29 @@ def _check_python_ast_antipatterns(code: str, file_rel: str, diff_lines: set[int
                                 line_number=lineno,
                                 code_snippet="secrets.token_urlsafe(32)",
                                 fix_suggestion="Use 'import secrets; secrets.token_urlsafe(32)' or 'secrets.token_hex(16)'.",
+                                rule_id="SOBER-CRY001",
                             )
                         )
-
     return issues
 
 
-def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issue]:
+def audit_antipatterns(file_audit: FileToAudit, project_root: Path,
+                       ctx: FileContext | None = None) -> list[Issue]:
     """Scan file for dangerous AI code patterns, missing timeouts, and LLM injection vectors."""
+    ctx = ctx or FileContext(file_audit)
+    if not ctx.content:
+        return []
+    ext = ctx.extension
+    file_rel = ctx.rel_path(project_root)
     issues = []
-    code = file_audit.read_text()
-    if not code:
-        return issues
-
-    ext = file_audit.extension
-    file_rel = str(
-        file_audit.path.relative_to(project_root)
-        if file_audit.path.is_relative_to(project_root)
-        else file_audit.path
-    )
-    diff_lines = file_audit.diff_lines
-    lines = code.splitlines()
-
-    # 1. Python AST Inspection
     if ext == ".py":
-        issues.extend(_check_python_ast_antipatterns(code, file_rel, diff_lines))
-
-    # 2. Line-by-line & Regex Inspection (all supported extensions)
-    for idx, line in enumerate(lines, start=1):
-        if diff_lines and idx not in diff_lines:
+        issues.extend(_check_python_ast_antipatterns(ctx, file_rel))
+    for idx, line in enumerate(ctx.lines, start=1):
+        if not ctx.in_diff(idx):
             continue
-
         stripped = line.strip()
         if stripped.startswith(("#", "//", "/*", "*")):
             continue
-
-        # Insecure randomness in JS/TS
         if ext in {".js", ".jsx", ".ts", ".tsx"} and INSECURE_RANDOM_REGEX.search(stripped):
             issues.append(
                 Issue(
@@ -174,10 +137,9 @@ def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issu
                     line_number=idx,
                     code_snippet=stripped,
                     fix_suggestion="Use 'crypto.randomUUID()' or 'crypto.getRandomValues()'.",
+                    rule_id="SOBER-CRY002",
                 )
             )
-
-        # Missing timeout in JS/TS bare fetch()
         if ext in {".js", ".jsx", ".ts", ".tsx"} and JS_FETCH_CALL_REGEX.search(stripped):
             issues.append(
                 Issue(
@@ -189,10 +151,9 @@ def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issu
                     line_number=idx,
                     code_snippet=stripped,
                     fix_suggestion="Add timeout: fetch(url, { signal: AbortSignal.timeout(10000) })",
+                    rule_id="SOBER-REL002",
                 )
             )
-
-        # Client-side leaked system prompt
         if ext in {".js", ".jsx", ".ts", ".tsx"} and LEAKED_SYSTEM_PROMPT_REGEX.search(stripped):
             issues.append(
                 Issue(
@@ -204,15 +165,12 @@ def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issu
                     line_number=idx,
                     code_snippet=stripped,
                     fix_suggestion="Move system prompts to backend server routes; never bundle in client-facing code.",
+                    rule_id="SOBER-LLM002",
                 )
             )
-
-    # 3. Multi-line direct prompt injection search
-    for match in PROMPT_INJECTION_REGEX.finditer(code):
-        start_char = match.start()
-        lineno = code.count("\n", 0, start_char) + 1
-        if not diff_lines or lineno in diff_lines:
-            matched_snippet = match.group(0)[:60]
+    for match in PROMPT_INJECTION_REGEX.finditer(ctx.content):
+        lineno = ctx.content.count("\n", 0, match.start()) + 1
+        if ctx.in_diff(lineno):
             issues.append(
                 Issue(
                     category="LLM Prompt Injection Risk",
@@ -224,9 +182,9 @@ def audit_antipatterns(file_audit: FileToAudit, project_root: Path) -> list[Issu
                     severity=Severity.CRITICAL,
                     file_path=file_rel,
                     line_number=lineno,
-                    code_snippet=matched_snippet,
+                    code_snippet=match.group(0)[:60],
                     fix_suggestion="Validate, delimit (e.g. <user_input>), or separate untrusted inputs using structured messages.",
+                    rule_id="SOBER-LLM001",
                 )
             )
-
     return issues
