@@ -1,11 +1,15 @@
 """
 Detector for AI-introduced Security Vulnerabilities and Secret Leaks.
 Flags hardcoded API keys, shell injection vectors, TLS disables, and dangerous execution calls.
+
+Every secret matched on a line is masked in all report surfaces (snippet, JSON, SARIF,
+Markdown, MCP), so a line containing multiple credentials never leaks a sibling secret.
 """
 
 import re
 from pathlib import Path
 
+from sober.core.context import FileContext
 from sober.core.scanner import FileToAudit
 from sober.detectors import Issue, Severity
 
@@ -34,8 +38,8 @@ SECRET_PATTERNS = [
 
 INJECTION_PATTERNS = [
     (re.compile(r'subprocess\.(?:call|Popen|run)\s*\([^)]*shell\s*=\s*True[^)]*\)', re.IGNORECASE), "Shell=True command execution (Command Injection risk)"),
-    (re.compile(r'\beval\s*\('), "Unsafe eval() execution"),
-    (re.compile(r'\bexec\s*\('), "Unsafe exec() dynamic code execution"),
+    (re.compile(r'(?<![\w.])eval\s*\('), "Unsafe eval() execution"),
+    (re.compile(r'(?<![\w.])exec\s*\('), "Unsafe exec() dynamic code execution"),
     (re.compile(r'''f["']SELECT\s+.*WHERE\s+.*\{[^}]+\}''', re.IGNORECASE), "Unparameterized f-string SQL query (SQL Injection risk)"),
     (re.compile(r'''["']SELECT\s+.*WHERE\s+.*['"]\s*\+''', re.IGNORECASE), "Concatenated raw SQL query (SQL Injection risk)"),
     (re.compile(r'pickle\.(?:loads?|load)\s*\(', re.IGNORECASE), "Unsafe pickle deserialization (Arbitrary Code Execution risk)"),
@@ -45,22 +49,34 @@ INJECTION_PATTERNS = [
 ]
 
 
+def _mask_value(matched: str) -> str:
+    return matched[:6] + "..." + matched[-4:] if len(matched) > 10 else "****"
+
+
+def mask_secrets(line: str, patterns) -> str:
+    """Mask every secret matched on a line so no sibling credential leaks."""
+    masked = line
+    for pattern, _title in patterns:
+        for match in pattern.finditer(line):
+            masked = masked.replace(match.group(0), _mask_value(match.group(0)))
+    return masked
+
+
 def audit_security(
     file_audit: FileToAudit,
     project_root: Path,
     custom_secret_patterns: list[dict[str, str]] | None = None,
+    ctx: FileContext | None = None,
 ) -> list[Issue]:
     """Scan file for secrets, API keys, shell injections, and unsafe code patterns."""
+    ctx = ctx or FileContext(file_audit)
+    if not ctx.content:
+        return []
+    file_rel = ctx.rel_path(project_root)
     issues = []
-    code = file_audit.read_text()
-    if not code:
-        return issues
 
-    file_rel = str(file_audit.path.relative_to(project_root) if file_audit.path.is_relative_to(project_root) else file_audit.path)
-    lines = code.splitlines()
-
-    # Compile any user-defined secret patterns
     active_secret_patterns = list(SECRET_PATTERNS)
+    secret_rule_ids = [f"SOBER-SEC{i:03d}" for i in range(1, len(SECRET_PATTERNS) + 1)]
     if custom_secret_patterns:
         for item in custom_secret_patterns:
             name = item.get("name", "Custom Secret Token")
@@ -68,21 +84,20 @@ def audit_security(
             if regex_str:
                 try:
                     active_secret_patterns.append((re.compile(regex_str), name))
+                    secret_rule_ids.append("SOBER-SEC900")
                 except re.error:
                     continue
 
-    for idx, line in enumerate(lines, start=1):
-        if file_audit.diff_lines and idx not in file_audit.diff_lines:
+    for idx, line in enumerate(ctx.lines, start=1):
+        if not ctx.in_diff(idx):
             continue
-
         stripped = line.strip()
 
-        # 1. Hardcoded Secrets & Tokens
-        for pattern, title in active_secret_patterns:
+        for (pattern, title), rule_id in zip(active_secret_patterns, secret_rule_ids):
             match = pattern.search(stripped)
             if match:
                 matched_str = match.group(0)
-                masked = matched_str[:6] + "..." + matched_str[-4:] if len(matched_str) > 10 else "****"
+                masked = _mask_value(matched_str)
                 issues.append(
                     Issue(
                         category="Security & Secrets",
@@ -91,15 +106,14 @@ def audit_security(
                         severity=Severity.CRITICAL,
                         file_path=file_rel,
                         line_number=idx,
-                        code_snippet=line.replace(matched_str, masked),
+                        code_snippet=mask_secrets(line, active_secret_patterns),
                         fix_suggestion="Move credential to an environment variable (.env) and add to .gitignore.",
+                        rule_id=rule_id,
                     )
                 )
 
-        # 2. Vulnerability Vectors
-        for pattern, title in INJECTION_PATTERNS:
+        for i, (pattern, title) in enumerate(INJECTION_PATTERNS, start=1):
             if pattern.search(stripped):
-                # Don't flag if line is a comment or a regex definition
                 if stripped.startswith(("#", "//", "/*", "*")) or "re.compile" in stripped:
                     continue
                 issues.append(
@@ -112,6 +126,7 @@ def audit_security(
                         line_number=idx,
                         code_snippet=stripped,
                         fix_suggestion="Use parameterized execution or safe library methods.",
+                        rule_id=f"SOBER-VUL{i:03d}",
                     )
                 )
 
