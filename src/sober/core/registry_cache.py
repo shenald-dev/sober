@@ -1,6 +1,9 @@
 """
 Persistent disk and memory cache for package registry verification.
-Prevents redundant network calls to PyPI and npm registries across runs.
+
+Prevents redundant network calls to PyPI and npm across runs. Writes are batched:
+``set_many`` records many verdicts and persists them with a single atomic write,
+which removes the per-package full-file rewrite of the legacy hot path.
 """
 
 import json
@@ -34,6 +37,7 @@ class RegistryCache:
         self.cache_file = cache_file or get_cache_file_path()
         self._lock = threading.Lock()
         self._cache: dict[str, dict] = {}
+        self._dirty = False
         self._load()
 
     def _load(self):
@@ -42,22 +46,28 @@ class RegistryCache:
                 try:
                     data = json.loads(self.cache_file.read_text(encoding="utf-8"))
                     now = time.time()
-                    # Filter out expired entries
                     self._cache = {
                         k: v
                         for k, v in data.items()
                         if isinstance(v, dict) and v.get("expires_at", 0) > now
                     }
-                except Exception:
-                    logger.debug(f"Failed to load cache from {self.cache_file}", exc_info=True)
+                except (OSError, ValueError):
+                    logger.debug("Failed to load cache from %s", self.cache_file, exc_info=True)
                     self._cache = {}
 
     def save(self):
+        """Atomically persist the cache if it changed since the last write."""
         with self._lock:
-            try:
-                self.cache_file.write_text(json.dumps(self._cache, indent=2), encoding="utf-8")
-            except OSError:
+            if not self._dirty:
                 return
+            snapshot = dict(self._cache)
+            self._dirty = False
+        try:
+            tmp = self.cache_file.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
+            os.replace(tmp, self.cache_file)
+        except OSError:
+            logger.debug("Failed to persist registry cache", exc_info=True)
 
     def get(self, key: str) -> bool | None:
         """Get cached validity status for a package (True, False, or None if not cached)."""
@@ -67,17 +77,28 @@ class RegistryCache:
                 return None
             if entry.get("expires_at", 0) <= time.time():
                 del self._cache[key]
+                self._dirty = True
                 return None
             return entry.get("is_valid")
 
+    def _record(self, key: str, is_valid: bool):
+        ttl = CONFIRMED_TTL_SECONDS if is_valid else NOT_FOUND_TTL_SECONDS
+        self._cache[key] = {"is_valid": is_valid, "expires_at": time.time() + ttl}
+        self._dirty = True
+
     def set(self, key: str, is_valid: bool):
-        """Set validity status with appropriate TTL."""
+        """Set validity status with appropriate TTL and persist immediately."""
         with self._lock:
-            ttl = CONFIRMED_TTL_SECONDS if is_valid else NOT_FOUND_TTL_SECONDS
-            self._cache[key] = {
-                "is_valid": is_valid,
-                "expires_at": time.time() + ttl,
-            }
+            self._record(key, is_valid)
+        self.save()
+
+    def set_many(self, items: dict[str, bool]):
+        """Record many verdicts under one lock and persist with a single write."""
+        if not items:
+            return
+        with self._lock:
+            for key, is_valid in items.items():
+                self._record(key, is_valid)
         self.save()
 
 
