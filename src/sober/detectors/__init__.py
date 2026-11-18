@@ -22,6 +22,7 @@ class Issue:
         code_snippet: str = "",
         fix_suggestion: str = "",
         auto_fixable: bool = False,
+        rule_id: str = "",
     ):
         self.category = category
         self.title = title
@@ -32,6 +33,7 @@ class Issue:
         self.code_snippet = code_snippet
         self.fix_suggestion = fix_suggestion
         self.auto_fixable = auto_fixable
+        self.rule_id = rule_id
 
     def to_dict(self):
         return {
@@ -44,4 +46,20 @@ class Issue:
             "code_snippet": self.code_snippet,
             "fix_suggestion": self.fix_suggestion,
             "auto_fixable": self.auto_fixable,
+            "rule_id": self.rule_id,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Issue":
+        return cls(
+            category=data["category"],
+            title=data["title"],
+            description=data["description"],
+            severity=Severity(data["severity"]),
+            file_path=data["file_path"],
+            line_number=data.get("line_number", 1),
+            code_snippet=data.get("code_snippet", ""),
+            fix_suggestion=data.get("fix_suggestion", ""),
+            auto_fixable=data.get("auto_fixable", False),
+            rule_id=data.get("rule_id", ""),
+        )
