@@ -26,6 +26,8 @@ class SoberConfig:
     custom_secret_patterns: list[dict[str, str]] = field(default_factory=list)
     max_workers: int = 10
     offline_mode: bool = False
+    cache_enabled: bool = True
+    fail_on_severity: str | None = None
 
     def is_path_ignored(self, rel_path: str) -> bool:
         """Check if relative file path matches any ignore glob patterns."""
@@ -84,10 +86,11 @@ def load_config(root_path: Path) -> SoberConfig:
                     custom_secret_patterns=list(section.get("custom_secret_patterns", [])),
                     max_workers=int(section.get("max_workers", 10)),
                     offline_mode=bool(section.get("offline_mode", False)),
+                    cache_enabled=bool(section.get("cache_enabled", True)),
+                    fail_on_severity=section.get("fail_on_severity"),
                 )
-            except Exception:
-                logger.debug(f"Failed to parse config candidate {candidate}", exc_info=True)
-                # If TOML has errors, skip to next candidate
+            except (OSError, ValueError, TypeError):
+                logger.debug("Failed to parse config candidate %s", candidate, exc_info=True)
                 continue
 
     return SoberConfig()
